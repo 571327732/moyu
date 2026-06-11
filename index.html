@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';"/>
+    <title>mm</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+            -webkit-app-region: no-drag;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 标题栏区域 - 可拖动窗口 */
+        .title-bar {
+            height: 28px;
+            background-color: #e8e8e8;
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        /* 内容区域 */
+        .content-area {
+            flex: 1;
+            -webkit-app-region: no-drag;
+        }
+
+        .search-container {
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            flex-grow: 1;
+            padding: 8px;
+            font-size: 14px;
+            border: none;
+            border-radius: 20px;
+            outline: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-button {
+            margin-left: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .search-button:hover {
+            background-color: #0056b3;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="title-bar">
+    <img src="cat-fish-64.png" style="width: 18px; height: 18px; margin-right: 6px;" alt="图标">
+    <span>透明浏览器</span>
+</div>
+
+<div class="content-area">
+    <div class="search-container">
+        <input type="text" id="urlInput" class="search-input" value="https://bilibili.com"  placeholder="请输入网址">
+        <button id="loadButton" class="search-button">搜索</button>
+    </div>
+</div>
+
+<script>
+    const {ipcRenderer} = require('electron');
+
+    const urlInput = document.getElementById('urlInput');
+    const loadButton = document.getElementById('loadButton');
+
+
+    loadButton.addEventListener('click', () => {
+        const url = urlInput.value;
+        ipcRenderer.send('load-url', url);
+    });
+
+    // 监听来自主进程的resize消息
+    ipcRenderer.on('resize', (event, {width, height}) => {
+        const contentArea = document.querySelector('.content-area');
+
+        // 调整页面尺寸
+        if (contentArea) {
+            contentArea.style.width = `${width}px`;
+            contentArea.style.height = `${height - 28}px`; // 减去标题栏高度
+        }
+    });
+</script>
+</body>
+</html>

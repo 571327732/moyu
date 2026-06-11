@@ -1,0 +1,46 @@
+{
+  "name": "moyu",
+  "version": "1.0.0",
+  "description": "moyu",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "build": "node .electron-vue/build.js && electron-builder"
+  },
+  "author": "xxx",
+  "license": "xxx",
+  "devDependencies": {
+    "@electron-forge/cli": "^6.4.2",
+    "@electron-forge/maker-deb": "^6.4.2",
+    "@electron-forge/maker-rpm": "^6.4.2",
+    "@electron-forge/maker-squirrel": "^6.4.2",
+    "@electron-forge/maker-zip": "^6.4.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^6.4.2",
+    "electron": "^25.9.8"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "sortablejs": "^1.15.0"
+  },
+  "build": {
+    "productName": "moyu",
+    "appId": "com.mo.yu",
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.games",
+      "icon": "build/icons/icon.icns"
+    },
+    "directories": {
+      "output": "build"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "dist/**/*",
+      "!logs/**/*",
+      "!cache/**/*",
+      "!*.log"
+    ]
+  }
+}
