@@ -26,7 +26,7 @@ function createMenuWindow() {
         resizable: false,
         alwaysOnTop: true,
         skipTaskbar: true,
-        visibleOnAllWorkspaces: true,
+        visibleOnAllWorkspaces: false,
         acceptFirstMouse: true, // 允许第一次点击就生效
         webPreferences: {
             nodeIntegration: true,
@@ -270,7 +270,7 @@ function createMenuWindow() {
                     <button class="control-btn" data-action="decrease-opacity">−</button>
                     <button class="control-btn" data-action="increase-opacity">+</button>
                 </div>
-                <span class="menu-item-shortcut">[-] [+]</span>
+                <span class="menu-item-shortcut">⌘- ⌘+</span>
             </div>
         </div>
 
@@ -428,6 +428,10 @@ function createMenuWindow() {
     // 监听菜单窗口隐藏事件，重新注册全局快捷键
     menuWindow.on('hide', () => {
         myShortcutKey.registerAllShortcuts();
+        // 菜单关闭后焦点还给 mainWindow，确保 macOS 原生 Hide/Show 正常
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+            mainWindow.focus();
+        }
     });
 
     // 监听关闭菜单的请求
@@ -476,46 +480,36 @@ function createTray() {
     tray.on('click', (event, bounds) => {
         if (menuWindow.isVisible()) {
             menuWindow.hide();
+        } else if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+            // 窗口隐藏时，点击托盘图标恢复显示
+            mainWindow.show();
+            mainWindow.focus();
         } else {
-            // 记录 mainWindow 在操作前的可见状态
-            const wasMainWindowHidden = mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible();
-
-            // 在托盘图标附近显示菜单窗口
+            // 窗口可见时，显示菜单
             const x = bounds.x + bounds.width / 2 - 140;
             const y = bounds.y + bounds.height + 5;
             menuWindow.setPosition(Math.round(x), Math.round(y));
 
-            // 确保窗口在所有桌面都可见且在最前面
-            menuWindow.setVisibleOnAllWorkspaces(true);
+            menuWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
             menuWindow.setAlwaysOnTop(true, 'screen-saver');
 
-            // 显示窗口并获取焦点，让ESC键能工作
             menuWindow.show();
             menuWindow.focus();
 
-            // 如果 mainWindow 之前是隐藏的，macOS 激活应用时可能把它显示了，恢复隐藏状态
-            if (wasMainWindowHidden && mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.hide();
-            }
-
             // 发送当前的透明度值（使用共享变量）
             if (mainWindow && menuWindow) {
-                // 确保共享变量是最新的
                 const currentOpacity = mainWindow.getOpacity();
                 myShortcutKey.setCurrentOpacity(currentOpacity);
                 menuWindow.webContents.send('update-opacity', currentOpacity);
 
-                // 同步忽略鼠标事件状态
                 const ignoreMouseState = myShortcutKey.getIgnoreMouseEventsState();
                 menuWindow.webContents.send('update-ignore-mouse-state', ignoreMouseState);
-                // 更新菜单中的初始状态
                 menuWindow.webContents.executeJavaScript(`
                     if (typeof ignoreMouseEvents !== 'undefined') {
                         ignoreMouseEvents = ${ignoreMouseState};
                     }
                 `);
 
-                // 同步固定窗口状态
                 menuWindow.webContents.send('update-pin-state', mainWindow.isAlwaysOnTop());
             }
         }
@@ -555,7 +549,7 @@ function createTray() {
                             if (mainWindow.isAlwaysOnTop()) {
                                 mainWindow.setVisibleOnAllWorkspaces(true);
                             } else {
-                                mainWindow.setVisibleOnAllWorkspaces(false);
+                                mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
                             }
                         });
                     }
@@ -635,7 +629,7 @@ function createTray() {
                 const isOnTop = mainWindow.isAlwaysOnTop();
                 if (isOnTop) {
                     mainWindow.setAlwaysOnTop(false);
-                    mainWindow.setVisibleOnAllWorkspaces(false);
+                    mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
                 } else {
                     mainWindow.setAlwaysOnTop(true, "screen-saver");
                     mainWindow.setVisibleOnAllWorkspaces(true);
@@ -758,7 +752,7 @@ function createWindow() {
         if (mainWindow.isAlwaysOnTop()) {
             mainWindow.setVisibleOnAllWorkspaces(true);
         } else {
-            mainWindow.setVisibleOnAllWorkspaces(false);
+            mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
         }
     });
     // 监听窗口大小变化事件

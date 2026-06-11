@@ -36,12 +36,12 @@ function registerAllShortcuts() {
     });
 
     //注册 减少透明度快捷键
-    globalShortcut.register("-", () => {
+    globalShortcut.register("CommandOrControl+-", () => {
         decrOpacity(mainWindow)
     });
 
     //注册 增加透明度快捷键
-    globalShortcut.register("=", () => {
+    globalShortcut.register("CommandOrControl+=", () => {
         incrOpacity(mainWindow)
     });
 
@@ -106,7 +106,7 @@ function toggleAlwaysOnTop(mainWindow) {
     const isPinned = !mainWindow.isAlwaysOnTop();
     if (mainWindow.isAlwaysOnTop()) {
         mainWindow.setAlwaysOnTop(false);
-        mainWindow.setVisibleOnAllWorkspaces(false);
+        mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
     } else {
         mainWindow.setAlwaysOnTop(true, "screen-saver");
         mainWindow.setVisibleOnAllWorkspaces(true);
