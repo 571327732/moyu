@@ -45,7 +45,7 @@ function registerAllShortcuts() {
         incrOpacity(mainWindow)
     });
 
-    //注册 固定窗口快捷键
+  /*  //注册 固定窗口快捷键
     globalShortcut.register("CommandOrControl+F", () => {
         toggleAlwaysOnTop(mainWindow)
     });
@@ -53,7 +53,7 @@ function registerAllShortcuts() {
     // 注册 忽略鼠标事件
     globalShortcut.register("CommandOrControl+D", () => {
         ignore_mouse_events(mainWindow)
-    });
+    });*/
 }
 
 // 注销所有快捷键（内部使用）
