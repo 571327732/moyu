@@ -6,6 +6,8 @@ let menuWindow = null; // 菜单窗口的引用
 let mainWindow = null; // 保存主窗口引用
 let forwardHandler = null; // 前进处理器
 let backwardHandler = null; // 后退处理器
+let bossKeyHandler = null; // 老板键处理器
+let quickHideHandler = null; // 快速隐藏处理器
 
 // 设置菜单窗口引用（供 main.js 调用）
 function setMenuWindow(win) {
@@ -37,12 +39,12 @@ function registerAllShortcuts() {
 
     //注册 减少透明度快捷键
     globalShortcut.register("CommandOrControl+-", () => {
-        decrOpacity(mainWindow)
+        decrOpacity()
     });
 
     //注册 增加透明度快捷键
     globalShortcut.register("CommandOrControl+=", () => {
-        incrOpacity(mainWindow)
+        incrOpacity()
     });
 
   /*  //注册 固定窗口快捷键
@@ -59,11 +61,11 @@ function registerAllShortcuts() {
 // 注销所有快捷键（内部使用）
 function unregisterAllShortcuts() {
     globalShortcut.unregisterAll();
+    registerPermanentShortcuts();
 }
 
-//减少 透明度
-function decrOpacity(mainWindow) {
-    // 检查窗口是否存在以及是否被销毁
+//减少 透明度（使用模块级 mainWindow）
+function decrOpacity() {
     if (!mainWindow || mainWindow.isDestroyed()) {
         return;
     }
@@ -73,15 +75,13 @@ function decrOpacity(mainWindow) {
         currentOpacity = 0.025;
     }
     mainWindow.setOpacity(currentOpacity);
-    // 向菜单窗口发送更新
     if (menuWindow && menuWindow.isVisible()) {
         menuWindow.webContents.send('update-opacity', currentOpacity);
     }
 }
 
-//增加透明度
-function incrOpacity(mainWindow) {
-    // 检查窗口是否存在以及是否被销毁
+//增加透明度（使用模块级 mainWindow）
+function incrOpacity() {
     if (!mainWindow || mainWindow.isDestroyed()) {
         return;
     }
@@ -91,7 +91,6 @@ function incrOpacity(mainWindow) {
         currentOpacity = 1;
     }
     mainWindow.setOpacity(currentOpacity);
-    // 向菜单窗口发送更新
     if (menuWindow && menuWindow.isVisible()) {
         menuWindow.webContents.send('update-opacity', currentOpacity);
     }
@@ -140,6 +139,27 @@ function ignore_mouse_events(mainWindow) {
     }
 }
 
+function setBossKeyHandler(handler) {
+    bossKeyHandler = handler;
+}
+
+function setQuickHideHandler(handler) {
+    quickHideHandler = handler;
+}
+
+function registerPermanentShortcuts() {
+    globalShortcut.register("CommandOrControl+Shift+B", () => {
+        if (typeof bossKeyHandler === 'function') {
+            bossKeyHandler();
+        }
+    });
+    globalShortcut.register("CommandOrControl+Shift+H", () => {
+        if (typeof quickHideHandler === 'function') {
+            quickHideHandler();
+        }
+    });
+}
+
 //注销所有快捷键
 function unregisterShortcutAll() {
     unregisterAllShortcuts();
@@ -174,5 +194,10 @@ module.exports = {
     getCurrentOpacity,
     setCurrentOpacity,
     getIgnoreMouseEventsState,
-    setIgnoreMouseEventsState
+    setIgnoreMouseEventsState,
+    incrOpacity,
+    decrOpacity,
+    setBossKeyHandler,
+    setQuickHideHandler,
+    registerPermanentShortcuts
 };

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Terminal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            background: #1e1e1e;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+        }
+        .tab-bar {
+            height: 36px;
+            background: #252526;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 16px;
+            border-bottom: 1px solid #333;
+            -webkit-app-region: drag;
+        }
+        .tab {
+            font-size: 12px;
+            color: #969696;
+            padding: 6px 12px;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            color: #fff;
+            border-bottom-color: #007acc;
+        }
+        .title-bar-dots {
+            display: flex; gap: 6px; margin-right: 12px;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
+        .sidebar {
+            width: 48px;
+            background: #333;
+            position: absolute;
+            left: 0;
+            top: 36px;
+            bottom: 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 8px;
+            gap: 12px;
+        }
+        .sidebar-icon {
+            width: 24px; height: 24px;
+            opacity: 0.5;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+        .sidebar-icon:first-child { opacity: 1; }
+        .editor-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .code-panel {
+            flex: 1;
+            padding: 12px 16px;
+            padding-left: 64px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            counter-reset: line;
+        }
+        .code-line {
+            white-space: pre;
+            display: flex;
+        }
+        .line-num {
+            color: #555;
+            width: 40px;
+            text-align: right;
+            margin-right: 16px;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .kw { color: #569cd6; }
+        .str { color: #ce9178; }
+        .fn { color: #dcdcaa; }
+        .cm { color: #6a9955; }
+        .tp { color: #4ec9b0; }
+        .num { color: #b5cea8; }
+        .op { color: #d4d4d4; }
+        .var { color: #9cdcfe; }
+        .status-bar {
+            height: 22px;
+            background: #007acc;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 11px;
+            color: #fff;
+            gap: 16px;
+        }
+        .cursor-blink {
+            display: inline-block;
+            width: 7px;
+            height: 15px;
+            background: #d4d4d4;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-bar">
+        <div class="title-bar-dots">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+        </div>
+        <div class="tab active">main.ts</div>
+        <div class="tab">package.json</div>
+        <div class="tab">README.md</div>
+    </div>
+    <div class="editor-area">
+        <div class="sidebar">
+            <div class="sidebar-icon">&#128193;</div>
+            <div class="sidebar-icon">&#128269;</div>
+            <div class="sidebar-icon">&#9654;</div>
+            <div class="sidebar-icon">&#9881;</div>
+        </div>
+        <div class="code-panel">
+            <div class="code-line"><span class="line-num">1</span><span class="kw">import</span> <span class="op">{</span> <span class="tp">App</span><span class="op">,</span> <span class="tp">Config</span> <span class="op">}</span> <span class="kw">from</span> <span class="str">'./core'</span><span class="op">;</span></div>
+            <div class="code-line"><span class="line-num">2</span><span class="kw">import</span> <span class="op">{</span> <span class="tp">Logger</span> <span class="op">}</span> <span class="kw">from</span> <span class="str">'./utils/logger'</span><span class="op">;</span></div>
+            <div class="code-line"><span class="line-num">3</span></div>
+            <div class="code-line"><span class="line-num">4</span><span class="cm">// Initialize application configuration</span></div>
+            <div class="code-line"><span class="line-num">5</span><span class="kw">const</span> <span class="var">config</span><span class="op">:</span> <span class="tp">Config</span> <span class="op">=</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">6</span>  <span class="var">port</span><span class="op">:</span> <span class="num">3000</span><span class="op">,</span></div>
+            <div class="code-line"><span class="line-num">7</span>  <span class="var">host</span><span class="op">:</span> <span class="str">'0.0.0.0'</span><span class="op">,</span></div>
+            <div class="code-line"><span class="line-num">8</span>  <span class="var">debug</span><span class="op">:</span> <span class="kw">process</span><span class="op">.</span><span class="var">env</span><span class="op">.</span><span class="var">NODE_ENV</span> <span class="op">!==</span> <span class="str">'production'</span></div>
+            <div class="code-line"><span class="line-num">9</span><span class="op">};</span></div>
+            <div class="code-line"><span class="line-num">10</span></div>
+            <div class="code-line"><span class="line-num">11</span><span class="kw">const</span> <span class="var">logger</span> <span class="op">=</span> <span class="kw">new</span> <span class="tp">Logger</span><span class="op">(</span><span class="str">'app'</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">12</span></div>
+            <div class="code-line"><span class="line-num">13</span><span class="kw">async function</span> <span class="fn">bootstrap</span><span class="op">():</span> <span class="tp">Promise</span><span class="op">&lt;</span><span class="kw">void</span><span class="op">&gt;</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">14</span>  <span class="kw">const</span> <span class="var">app</span> <span class="op">=</span> <span class="kw">new</span> <span class="tp">App</span><span class="op">(</span><span class="var">config</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">15</span></div>
+            <div class="code-line"><span class="line-num">16</span>  <span class="var">logger</span><span class="op">.</span><span class="fn">info</span><span class="op">(</span><span class="str">'Starting application server...'</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">17</span>  <span class="kw">await</span> <span class="var">app</span><span class="op">.</span><span class="fn">listen</span><span class="op">(</span><span class="var">config</span><span class="op">.</span><span class="var">port</span><span class="op">,</span> <span class="var">config</span><span class="op">.</span><span class="var">host</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">18</span>  <span class="var">logger</span><span class="op">.</span><span class="fn">info</span><span class="op">(</span><span class="str">`Server running on </span><span class="kw">${</span><span class="var">config</span><span class="op">.</span><span class="var">host</span><span class="kw">}</span><span class="str">:</span><span class="kw">${</span><span class="var">config</span><span class="op">.</span><span class="var">port</span><span class="kw">}</span><span class="str">`</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">19</span></div>
+            <div class="code-line"><span class="line-num">20</span>  <span class="kw">for</span> <span class="op">(</span><span class="kw">const</span> <span class="var">route</span> <span class="kw">of</span> <span class="var">app</span><span class="op">.</span><span class="fn">routes</span><span class="op">)</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">21</span>    <span class="var">logger</span><span class="op">.</span><span class="fn">debug</span><span class="op">(</span><span class="str">`Registered: </span><span class="kw">${</span><span class="var">route</span><span class="op">.</span><span class="var">method</span><span class="kw">}</span> <span class="kw">${</span><span class="var">route</span><span class="op">.</span><span class="var">path</span><span class="kw">}</span><span class="str">`</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">22</span>  <span class="op">}</span></div>
+            <div class="code-line"><span class="line-num">23</span></div>
+            <div class="code-line"><span class="line-num">24</span>  <span class="kw">const</span> <span class="var">shutdown</span> <span class="op">=</span> <span class="kw">async</span> <span class="op">()</span> <span class="kw">=&gt;</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">25</span>    <span class="var">logger</span><span class="op">.</span><span class="fn">info</span><span class="op">(</span><span class="str">'Shutting down gracefully...'</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">26</span>    <span class="kw">await</span> <span class="var">app</span><span class="op">.</span><span class="fn">close</span><span class="op">();</span></div>
+            <div class="code-line"><span class="line-num">27</span>    <span class="var">logger</span><span class="op">.</span><span class="fn">info</span><span class="op">(</span><span class="str">'Server stopped.'</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">28</span>    <span class="kw">process</span><span class="op">.</span><span class="fn">exit</span><span class="op">(</span><span class="num">0</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">29</span>  <span class="op">};</span></div>
+            <div class="code-line"><span class="line-num">30</span></div>
+            <div class="code-line"><span class="line-num">31</span>  <span class="kw">process</span><span class="op">.</span><span class="fn">on</span><span class="op">(</span><span class="str">'SIGTERM'</span><span class="op">,</span> <span class="var">shutdown</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">32</span>  <span class="kw">process</span><span class="op">.</span><span class="fn">on</span><span class="op">(</span><span class="str">'SIGINT'</span><span class="op">,</span> <span class="var">shutdown</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">33</span></div>
+            <div class="code-line"><span class="line-num">34</span>  <span class="kw">if</span> <span class="op">(</span><span class="var">config</span><span class="op">.</span><span class="var">debug</span><span class="op">)</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">35</span>    <span class="var">logger</span><span class="op">.</span><span class="fn">warn</span><span class="op">(</span><span class="str">'Running in debug mode — not for production'</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">36</span>  <span class="op">}</span></div>
+            <div class="code-line"><span class="line-num">37</span><span class="op">}</span></div>
+            <div class="code-line"><span class="line-num">38</span></div>
+            <div class="code-line"><span class="line-num">39</span><span class="fn">bootstrap</span><span class="op">().</span><span class="fn">catch</span><span class="op">(</span><span class="var">err</span> <span class="kw">=&gt;</span> <span class="op">{</span></div>
+            <div class="code-line"><span class="line-num">40</span>  <span class="var">logger</span><span class="op">.</span><span class="fn">error</span><span class="op">(</span><span class="str">'Fatal:'</span><span class="op">,</span> <span class="var">err</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">41</span>  <span class="kw">process</span><span class="op">.</span><span class="fn">exit</span><span class="op">(</span><span class="num">1</span><span class="op">);</span></div>
+            <div class="code-line"><span class="line-num">42</span><span class="op">});</span></div>
+            <div class="code-line"><span class="line-num">43</span><span class="cursor-blink"></span></div>
+        </div>
+    </div>
+    <div class="status-bar">
+        <span>main.ts</span>
+        <span>TypeScript</span>
+        <span>Ln 43, Col 1</span>
+        <span style="margin-left:auto;">UTF-8</span>
+    </div>
+</body>
+</html>

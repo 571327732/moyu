@@ -1,7 +1,7 @@
 {
   "name": "moyu",
   "version": "1.0.0",
-  "description": "moyu",
+  "description": "摸鱼",
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",

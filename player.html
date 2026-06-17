@@ -87,7 +87,7 @@
     <select id="speedSelect">
         <option value="0.5">0.5x</option>
         <option value="0.75">0.75x</option>
-        <option value="1" selected>1x</option>
+        <option value="1">1x</option>
         <option value="1.25">1.25x</option>
         <option value="1.5" selected>1.5x</option>
         <option value="2">2x</option>
@@ -130,6 +130,20 @@
         return null;
     }
 
+    function onVideoLoaded() {
+        const savedTime = localStorage.getItem(currentVideoKey);
+        if(savedTime) video.currentTime = Number(savedTime);
+
+        const savedRate = localStorage.getItem("video_playback_rate");
+        if(savedRate){
+            speedSelect.value = savedRate;
+            video.playbackRate = Number(savedRate);
+        }else{
+            speedSelect.value = "1.5";
+            video.playbackRate = 1.5;
+        }
+    }
+
     // 选择视频
     fileInput.addEventListener("change", (e)=>{
         const file = e.target.files[0];
@@ -150,24 +164,9 @@
 
         // 保存当前视频信息
         saveCurrentVideoInfo(file);
-
-        video.addEventListener("loadedmetadata", ()=>{
-            // 恢复进度
-            const savedTime = localStorage.getItem(currentVideoKey);
-            if(savedTime) video.currentTime = Number(savedTime);
-
-            // 恢复上次倍速
-            const savedRate = localStorage.getItem("video_playback_rate");
-            if(savedRate){
-                speedSelect.value = savedRate;
-                video.playbackRate = Number(savedRate);
-            }else{
-                speedSelect.value = "1.5";
-                video.playbackRate = 1.5;
-            }
-
-        }, { once: true });
     });
+
+    video.addEventListener("loadedmetadata", onVideoLoaded);
 
     // 页面加载时尝试恢复上一次的视频
     window.addEventListener('load', () => {

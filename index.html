@@ -91,7 +91,7 @@
 </div>
 
 <script>
-    const {ipcRenderer} = require('electron');
+    const ipcRenderer = window.electronAPI;
 
     const urlInput = document.getElementById('urlInput');
     const loadButton = document.getElementById('loadButton');

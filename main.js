@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, BrowserView, Tray, Menu, nativeImage} = require("electron");
+const {app, BrowserWindow, ipcMain, BrowserView, Tray, Menu, nativeImage, desktopCapturer, screen} = require("electron");
 
 //引入其他 自定义 js 文件
 const myShortcutKey = require("./shortcutKeys");
@@ -10,6 +10,10 @@ let tray;
 let currentView = 'web'; // 当前显示的视图
 let webView; // 网页视图
 let playerView; // 播放器视图
+let fakeView; // 伪装代码视图
+let fakeWallpaperView; // 假桌面壁纸视图
+let viewBeforeBoss = null; // 老板键切换前的视图
+let isFakeWallpaper = false; // 假桌面壁纸状态
 
 const is_mac = process.platform==='darwin'
 if(is_mac) {
@@ -19,7 +23,7 @@ if(is_mac) {
 function createMenuWindow() {
     menuWindow = new BrowserWindow({
         width: 280,
-        height: 420,
+        height: 560,
         show: false,
         frame: false,
         transparent: true,
@@ -29,8 +33,9 @@ function createMenuWindow() {
         visibleOnAllWorkspaces: false,
         acceptFirstMouse: true, // 允许第一次点击就生效
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
@@ -249,6 +254,31 @@ function createMenuWindow() {
 
         <div class="menu-separator"></div>
 
+        <div class="menu-item nav-item" data-action="boss-key">
+            <div class="menu-item-left">
+                <span class="menu-item-icon">👨‍💻</span>
+                <span class="menu-item-label">伪装代码</span>
+            </div>
+            <span class="menu-item-shortcut">⌘⇧B</span>
+        </div>
+
+        <div class="menu-item nav-item" data-action="quick-hide">
+            <div class="menu-item-left">
+                <span class="menu-item-icon">👻</span>
+                <span class="menu-item-label">快速隐藏</span>
+            </div>
+            <span class="menu-item-shortcut">⌘⇧H</span>
+        </div>
+
+        <div class="menu-item nav-item" data-action="fake-wallpaper">
+            <div class="menu-item-left">
+                <span class="menu-item-icon">🖥️</span>
+                <span class="menu-item-label">假桌面壁纸</span>
+            </div>
+        </div>
+
+        <div class="menu-separator"></div>
+
         <div class="menu-item" data-action="toggle-ignore-mouse">
             <div class="checkbox-container">
                 <div class="checkbox" id="ignoreMouseCheckbox"></div>
@@ -293,7 +323,7 @@ function createMenuWindow() {
             </div>
         </div>
         <script>
-            const {ipcRenderer} = require('electron');
+            const ipcRenderer = window.electronAPI;
             let ignoreMouseEvents = false;
             let isPinned = true;
             let currentOpacity = 0.3;
@@ -379,6 +409,15 @@ function createMenuWindow() {
                         case 'quit':
                             ipcRenderer.send('menu-action', 'quit');
                             break;
+                        case 'boss-key':
+                            ipcRenderer.send('menu-action', 'boss-key');
+                            break;
+                        case 'quick-hide':
+                            ipcRenderer.send('menu-action', 'quick-hide');
+                            break;
+                        case 'fake-wallpaper':
+                            ipcRenderer.send('menu-action', 'fake-wallpaper');
+                            break;
                     }
                 });
             });
@@ -399,15 +438,12 @@ function createMenuWindow() {
     // 等待页面加载完成后发送初始透明度（使用共享变量）
     menuWindow.webContents.on('did-finish-load', () => {
         if (mainWindow && menuWindow) {
-            // 确保共享变量是最新的
             const currentOpacity = mainWindow.getOpacity();
             myShortcutKey.setCurrentOpacity(currentOpacity);
             menuWindow.webContents.send('update-opacity', currentOpacity);
 
-            // 同步忽略鼠标事件状态
             const ignoreMouseState = myShortcutKey.getIgnoreMouseEventsState();
             menuWindow.webContents.send('update-ignore-mouse-state', ignoreMouseState);
-            // 更新菜单中的初始状态
             menuWindow.webContents.executeJavaScript(`
                 if (typeof ignoreMouseEvents !== 'undefined') {
                     ignoreMouseEvents = ${ignoreMouseState};
@@ -420,7 +456,6 @@ function createMenuWindow() {
                 }
             `);
 
-            // 同步固定窗口状态
             menuWindow.webContents.send('update-pin-state', mainWindow.isAlwaysOnTop());
         }
     });
@@ -428,26 +463,155 @@ function createMenuWindow() {
     // 监听菜单窗口隐藏事件，重新注册全局快捷键
     menuWindow.on('hide', () => {
         myShortcutKey.registerAllShortcuts();
-        // 菜单关闭后焦点还给 mainWindow，确保 macOS 原生 Hide/Show 正常
         if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
             mainWindow.focus();
         }
     });
-
-    // 监听关闭菜单的请求
-    ipcMain.on('close-menu', () => {
-        if (menuWindow && !menuWindow.isDestroyed()) {
-            menuWindow.hide();
-        }
-    });
-
-    // 监听获取菜单窗口焦点的请求
-    ipcMain.on('focus-menu-window', () => {
-        if (menuWindow && !menuWindow.isDestroyed() && menuWindow.isVisible()) {
-            menuWindow.focus();
-        }
-    });
 }
+
+// 监听关闭菜单的请求（模块级注册，避免重复注册）
+ipcMain.on('close-menu', () => {
+    if (menuWindow && !menuWindow.isDestroyed()) {
+        menuWindow.hide();
+    }
+});
+
+// 监听获取菜单窗口焦点的请求
+ipcMain.on('focus-menu-window', () => {
+    if (menuWindow && !menuWindow.isDestroyed() && menuWindow.isVisible()) {
+        menuWindow.focus();
+    }
+});
+
+// 监听渲染进程发送的事件，加载指定网址(index.html 中的搜索按钮传来的地址)
+ipcMain.on("load-url", (event, url) => {
+    if (webView && !webView.webContents.isDestroyed()) {
+        try {
+            const parsed = new URL(url);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                webView.webContents.loadURL(url);
+            }
+        } catch (e) {
+            try {
+                const parsed = new URL('https://' + url);
+                webView.webContents.loadURL(parsed.href);
+            } catch (e2) {
+                console.error('无效的 URL:', url);
+            }
+        }
+    }
+});
+
+// 监听来自菜单窗口的操作（模块级注册，避免重复注册）
+ipcMain.on('menu-action', (event, action, data) => {
+    switch(action) {
+        case 'forward':
+            if (currentView === 'web' && webView && !webView.webContents.isDestroyed() && webView.webContents.canGoForward()) {
+                webView.webContents.goForward();
+            }
+            break;
+        case 'backward':
+            if (currentView === 'web' && webView && !webView.webContents.isDestroyed() && webView.webContents.canGoBack()) {
+                webView.webContents.goBack();
+            }
+            break;
+        case 'go-to-player':
+            if (mainWindow && !mainWindow.isDestroyed() && currentView !== 'player') {
+                if (!playerView) {
+                    playerView = new BrowserView({
+                        webPreferences: {
+                            nodeIntegration: false,
+                            contextIsolation: true,
+                            preload: path.join(__dirname, 'preload.js')
+                        }
+                    });
+                    playerView.webContents.loadFile(path.join(__dirname, "player.html"));
+                    playerView.webContents.on('did-finish-load', () => {
+                        if (mainWindow.isAlwaysOnTop()) {
+                            mainWindow.setVisibleOnAllWorkspaces(true);
+                        } else {
+                            mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
+                        }
+                    });
+                }
+                mainWindow.setBrowserView(playerView);
+                playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+                currentView = 'player';
+            }
+            break;
+        case 'go-to-home':
+            if (mainWindow && !mainWindow.isDestroyed() && currentView !== 'web') {
+                mainWindow.setBrowserView(webView);
+                webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+                currentView = 'web';
+            }
+            break;
+        case 'toggle-ignore-mouse':
+            myShortcutKey.setIgnoreMouseEventsState(data);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                if (data) {
+                    mainWindow.setIgnoreMouseEvents(true, { forward: true });
+                } else {
+                    mainWindow.setIgnoreMouseEvents(false);
+                }
+            }
+            if (menuWindow && !menuWindow.isDestroyed()) {
+                menuWindow.webContents.send('update-ignore-mouse-state', data);
+            }
+            if (menuWindow && !menuWindow.isDestroyed()) {
+                menuWindow.focus();
+            }
+            break;
+        case 'increase-opacity': {
+            if (!mainWindow || mainWindow.isDestroyed()) break;
+            myShortcutKey.incrOpacity();
+            if (menuWindow && !menuWindow.isDestroyed()) {
+                menuWindow.focus();
+            }
+            break;
+        }
+        case 'decrease-opacity': {
+            if (!mainWindow || mainWindow.isDestroyed()) break;
+            myShortcutKey.decrOpacity();
+            if (menuWindow && !menuWindow.isDestroyed()) {
+                menuWindow.focus();
+            }
+            break;
+        }
+        case 'toggle-pin':
+            if (!mainWindow || mainWindow.isDestroyed()) break;
+            const isOnTop = mainWindow.isAlwaysOnTop();
+            if (isOnTop) {
+                mainWindow.setAlwaysOnTop(false);
+                mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
+            } else {
+                mainWindow.setAlwaysOnTop(true, "screen-saver");
+                mainWindow.setVisibleOnAllWorkspaces(true);
+            }
+            if (menuWindow && !menuWindow.isDestroyed()) {
+                menuWindow.focus();
+            }
+            break;
+            case 'quit':
+                app.quit();
+                break;
+            case 'boss-key':
+                handleBossKey();
+                if (menuWindow && !menuWindow.isDestroyed()) {
+                    menuWindow.focus();
+                }
+                break;
+            case 'quick-hide':
+                handleQuickHide();
+                break;
+            case 'fake-wallpaper':
+                handleFakeWallpaper();
+                if (menuWindow && !menuWindow.isDestroyed()) {
+                    menuWindow.focus();
+                }
+                break;
+    }
+});
 
 // 监听快捷键发送的前进/后退消息
 // 前进处理函数
@@ -465,6 +629,93 @@ function handleBackward() {
     if (currentView !== 'web') return;
     if (webView && !webView.webContents.isDestroyed() && webView.webContents.canGoBack()) {
         webView.webContents.goBack();
+    }
+}
+
+function handleBossKey() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (currentView === 'fake') {
+        const prevView = viewBeforeBoss || 'web';
+        if (prevView === 'web' && webView) {
+            mainWindow.setBrowserView(webView);
+            webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        } else if (prevView === 'player' && playerView) {
+            mainWindow.setBrowserView(playerView);
+            playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        }
+        currentView = prevView;
+    } else {
+        viewBeforeBoss = currentView;
+        if (!fakeView) {
+            fakeView = new BrowserView({
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    preload: path.join(__dirname, 'preload.js')
+                }
+            });
+            fakeView.webContents.loadFile(path.join(__dirname, "fakeScreen.html"));
+        }
+        mainWindow.setBrowserView(fakeView);
+        fakeView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        currentView = 'fake';
+    }
+}
+
+function handleQuickHide() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isVisible()) {
+        mainWindow.hide();
+    } else {
+        mainWindow.show();
+        mainWindow.focus();
+    }
+}
+
+async function handleFakeWallpaper() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (currentView !== 'web' || !webView) return;
+    if (isFakeWallpaper) {
+        isFakeWallpaper = false;
+        mainWindow.setBrowserView(webView);
+        webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        return;
+    }
+    try {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        const scaleFactor = display.scaleFactor;
+        mainWindow.hide();
+        await new Promise(r => setTimeout(r, 100));
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: display.size.width * scaleFactor, height: display.size.height * scaleFactor }
+        });
+        if (sources.length === 0) { mainWindow.show(); return; }
+        const fullImage = sources[0].thumbnail;
+        const relX = bounds.x - display.bounds.x;
+        const relY = bounds.y - display.bounds.y;
+        const cropped = fullImage.crop({
+            x: Math.round(relX * scaleFactor),
+            y: Math.round(relY * scaleFactor),
+            width: Math.round(bounds.width * scaleFactor),
+            height: Math.round(bounds.height * scaleFactor)
+        });
+        const croppedDataUrl = cropped.toDataURL();
+        isFakeWallpaper = true;
+        if (!fakeWallpaperView) {
+            fakeWallpaperView = new BrowserView({
+                webPreferences: { nodeIntegration: false, contextIsolation: true }
+            });
+        }
+        const bgHtml = '<!DOCTYPE html><html><head><style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}body{background:url(' + croppedDataUrl + ') center/cover no-repeat}</style></head><body></body></html>';
+        fakeWallpaperView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(bgHtml));
+        mainWindow.setBrowserView(fakeWallpaperView);
+        fakeWallpaperView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
+        mainWindow.show();
+    } catch (err) {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+        console.error('截取桌面失败:', err);
     }
 }
 
@@ -488,9 +739,9 @@ function createTray() {
             // 窗口可见时，显示菜单
             const x = bounds.x + bounds.width / 2 - 140;
             const y = bounds.y + bounds.height + 5;
-            menuWindow.setPosition(Math.round(x), Math.round(y));
+            menuWindow.setPosition(Math.round(x), Math.max(0, Math.round(y - 140)));
 
-            menuWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
+            menuWindow.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
             menuWindow.setAlwaysOnTop(true, 'screen-saver');
 
             menuWindow.show();
@@ -515,136 +766,6 @@ function createTray() {
         }
     });
 
-    // 监听来自菜单窗口的操作
-    ipcMain.on('menu-action', (event, action, data) => {
-        switch(action) {
-            case 'forward':
-                // 前进 - 只在网页视图生效
-                if (currentView === 'web' && webView && !webView.webContents.isDestroyed() && webView.webContents.canGoForward()) {
-                    webView.webContents.goForward();
-                }
-                break;
-            case 'backward':
-                // 后退 - 只在网页视图生效
-                if (currentView === 'web' && webView && !webView.webContents.isDestroyed() && webView.webContents.canGoBack()) {
-                    webView.webContents.goBack();
-                }
-                break;
-            case 'go-to-player':
-                // 切换到播放器
-                if (mainWindow && !mainWindow.isDestroyed() && currentView !== 'player') {
-                    // 如果播放器视图还未创建，则创建它
-                    if (!playerView) {
-                        playerView = new BrowserView({
-                            webPreferences: {
-                                nodeIntegration: true,
-                                contextIsolation: false,
-                                enableRemoteModule: true
-                            }
-                        });
-                        playerView.webContents.loadFile(path.join(__dirname, "player.html"));
-
-                        // 监听播放器视图的加载完成
-                        playerView.webContents.on('did-finish-load', () => {
-                            if (mainWindow.isAlwaysOnTop()) {
-                                mainWindow.setVisibleOnAllWorkspaces(true);
-                            } else {
-                                mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
-                            }
-                        });
-                    }
-                    mainWindow.setBrowserView(playerView);
-                    playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
-                    currentView = 'player';
-                }
-                break;
-            case 'go-to-home':
-                // 切换到网页
-                if (mainWindow && !mainWindow.isDestroyed() && currentView !== 'web') {
-                    mainWindow.setBrowserView(webView);
-                    webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
-                    currentView = 'web';
-                }
-                break;
-            case 'toggle-ignore-mouse':
-                // 更新快捷键模块中的状态
-                myShortcutKey.setIgnoreMouseEventsState(data);
-                // 根据新状态设置窗口行为
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    if (data) {
-                        // 忽略整个窗口的鼠标事件，但允许点击穿透到下面的窗口
-                        mainWindow.setIgnoreMouseEvents(true, { forward: true });
-                    } else {
-                        // 不忽略鼠标事件
-                        mainWindow.setIgnoreMouseEvents(false);
-                    }
-                }
-                // 发送状态更新到菜单窗口（同步所有显示）
-                if (menuWindow && !menuWindow.isDestroyed()) {
-                    menuWindow.webContents.send('update-ignore-mouse-state', data);
-                }
-                // 保持菜单窗口焦点
-                if (menuWindow && !menuWindow.isDestroyed()) {
-                    menuWindow.focus();
-                }
-                break;
-            case 'increase-opacity': {
-                if (!mainWindow || mainWindow.isDestroyed()) break;
-                let opacity = mainWindow.getOpacity();
-                opacity += 0.025;
-                if (opacity > 1) opacity = 1;
-                mainWindow.setOpacity(opacity);
-                // 更新快捷键模块中的共享变量
-                myShortcutKey.setCurrentOpacity(opacity);
-                // 向菜单窗口发送更新
-                if (menuWindow) {
-                    menuWindow.webContents.send('update-opacity', opacity);
-                }
-                // 保持菜单窗口焦点
-                if (menuWindow && !menuWindow.isDestroyed()) {
-                    menuWindow.focus();
-                }
-                break;
-            }
-            case 'decrease-opacity': {
-                if (!mainWindow || mainWindow.isDestroyed()) break;
-                let opacity = mainWindow.getOpacity();
-                opacity -= 0.025;
-                if (opacity < 0.025) opacity = 0.025;
-                mainWindow.setOpacity(opacity);
-                // 更新快捷键模块中的共享变量
-                myShortcutKey.setCurrentOpacity(opacity);
-                // 向菜单窗口发送更新
-                if (menuWindow) {
-                    menuWindow.webContents.send('update-opacity', opacity);
-                }
-                // 保持菜单窗口焦点
-                if (menuWindow && !menuWindow.isDestroyed()) {
-                    menuWindow.focus();
-                }
-                break;
-            }
-            case 'toggle-pin':
-                if (!mainWindow || mainWindow.isDestroyed()) break;
-                const isOnTop = mainWindow.isAlwaysOnTop();
-                if (isOnTop) {
-                    mainWindow.setAlwaysOnTop(false);
-                    mainWindow.setVisibleOnAllWorkspaces(false, { skipTransformProcessType: true });
-                } else {
-                    mainWindow.setAlwaysOnTop(true, "screen-saver");
-                    mainWindow.setVisibleOnAllWorkspaces(true);
-                }
-                // 保持菜单窗口焦点
-                if (menuWindow && !menuWindow.isDestroyed()) {
-                    menuWindow.focus();
-                }
-                break;
-            case 'quit':
-                app.quit();
-                break;
-        }
-    });
-
 }
 
 
@@ -653,21 +774,20 @@ function createWindow() {
         width: 500,
         height: 380,
         alwaysOnTop: true,
-        backgroundColor: '#000000', // 设置背景颜色为黑色
+        backgroundColor: '#000000',
         icon: path.join(__dirname, 'cat-fish.png'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
-    // 创建网页视图
     webView = new BrowserView({
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true,
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
             zoomFactor: 1.0
         }
     });
@@ -734,13 +854,6 @@ function createWindow() {
     // 创建系统托盘菜单
     createTray();
 
-    // 监听渲染进程发送的事件，加载指定网址(index.html 中的搜索按钮传来的地址)
-    ipcMain.on("load-url", (event, url) => {
-        if (webView && !webView.webContents.isDestroyed()) {
-            webView.webContents.loadURL(url);
-        }
-    })
-
     //阻止网页视图中的链接跳转，直接在本页面展示
     webView.webContents.setWindowOpenHandler(details => {
         webView.webContents.loadURL(details.url);
@@ -762,12 +875,16 @@ function createWindow() {
             const {width, height} = mainWindow.getBounds();
 
             // 调整当前显示的 BrowserView 大小
-            if (currentView === 'web' && webView && !webView.webContents.isDestroyed()) {
+            if (isFakeWallpaper && fakeWallpaperView && !fakeWallpaperView.webContents.isDestroyed()) {
+                fakeWallpaperView.setBounds({ x: 0, y: 0, width, height });
+            } else if (currentView === 'web' && webView && !webView.webContents.isDestroyed()) {
                 webView.setBounds({ x: 0, y: 0, width, height });
                 webView.webContents.send("resize", {width, height});
             } else if (currentView === 'player' && playerView && !playerView.webContents.isDestroyed()) {
                 playerView.setBounds({ x: 0, y: 0, width, height });
                 playerView.webContents.send("resize", {width, height});
+            } else if (currentView === 'fake' && fakeView && !fakeView.webContents.isDestroyed()) {
+                fakeView.setBounds({ x: 0, y: 0, width, height });
             }
         } catch (error) {
             console.error('调整窗口大小时出错:', error);
@@ -776,6 +893,8 @@ function createWindow() {
 
     // 注册快捷键模块（但不立即注册快捷键，等待窗口获得焦点）
     myShortcutKey.registerShortcut(mainWindow, handleForward, handleBackward);
+    myShortcutKey.setBossKeyHandler(handleBossKey);
+    myShortcutKey.setQuickHideHandler(handleQuickHide);
 
     // 监听窗口获得焦点事件，注册快捷键
     mainWindow.on('focus', () => {
@@ -807,12 +926,25 @@ function createWindow() {
             }
             playerView = null;
         }
+        if (fakeView) {
+            if (!fakeView.webContents.isDestroyed()) {
+                fakeView.webContents.destroy();
+            }
+            fakeView = null;
+        }
+        if (fakeWallpaperView) {
+            if (!fakeWallpaperView.webContents.isDestroyed()) {
+                fakeWallpaperView.webContents.destroy();
+            }
+            fakeWallpaperView = null;
+        }
         mainWindow = null;
     });
 }
 
 app.on("ready", () => {
     createWindow();
+    myShortcutKey.registerPermanentShortcuts();
     // 再次确保 dock 图标隐藏（创建窗口后 macOS 可能会重新显示 dock 图标）
     if (is_mac) {
         app.dock.hide();
