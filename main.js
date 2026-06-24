@@ -2,6 +2,7 @@ const {app, BrowserWindow, ipcMain, BrowserView, Tray, Menu, nativeImage, deskto
 
 //引入其他 自定义 js 文件
 const myShortcutKey = require("./shortcutKeys");
+const {startCookieServer} = require("./cookie-server");
 const path = require("path");
 
 let mainWindow;
@@ -23,7 +24,7 @@ if(is_mac) {
 function createMenuWindow() {
     menuWindow = new BrowserWindow({
         width: 280,
-        height: 560,
+        height: 100,  // 初始高度，会自动调整
         show: false,
         frame: false,
         transparent: true,
@@ -31,7 +32,8 @@ function createMenuWindow() {
         alwaysOnTop: true,
         skipTaskbar: true,
         visibleOnAllWorkspaces: false,
-        acceptFirstMouse: true, // 允许第一次点击就生效
+        acceptFirstMouse: true,
+        useContentSize: true,  // 基于内容大小
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -51,6 +53,9 @@ function createMenuWindow() {
                 padding: 0;
                 box-sizing: border-box;
             }
+            html, body {
+                height: auto;
+            }
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
                 font-size: 14px;
@@ -61,6 +66,7 @@ function createMenuWindow() {
                 -webkit-backdrop-filter: blur(20px);
                 overflow: hidden;
                 border: 1px solid rgba(255, 255, 255, 0.5);
+                padding-bottom: 4px;
             }
             .menu-item {
                 padding: 12px 16px;
@@ -236,24 +242,6 @@ function createMenuWindow() {
 
         <div class="menu-separator"></div>
 
-        <div class="menu-item nav-item" data-action="go-to-player">
-            <div class="menu-item-left">
-                <span class="menu-item-icon">🎬</span>
-                <span class="menu-item-label">前往播放器</span>
-            </div>
-            <span class="menu-item-value">播放视频</span>
-        </div>
-
-        <div class="menu-item nav-item" data-action="go-to-home">
-            <div class="menu-item-left">
-                <span class="menu-item-icon">🌐</span>
-                <span class="menu-item-label">网页浏览</span>
-            </div>
-            <span class="menu-item-value">浏览网页</span>
-        </div>
-
-        <div class="menu-separator"></div>
-
         <div class="menu-item nav-item" data-action="boss-key">
             <div class="menu-item-left">
                 <span class="menu-item-icon">👨‍💻</span>
@@ -275,6 +263,14 @@ function createMenuWindow() {
                 <span class="menu-item-icon">🖥️</span>
                 <span class="menu-item-label">假桌面壁纸</span>
             </div>
+        </div>
+
+        <div class="menu-item nav-item" data-action="toggle-fullscreen">
+            <div class="menu-item-left">
+                <span class="menu-item-icon">📺</span>
+                <span class="menu-item-label">铺满屏幕</span>
+            </div>
+            <span class="menu-item-value" id="fullscreenValue">关闭</span>
         </div>
 
         <div class="menu-separator"></div>
@@ -328,6 +324,12 @@ function createMenuWindow() {
             let isPinned = true;
             let currentOpacity = 0.3;
 
+            // 页面加载完成后，通知主进程调整窗口大小
+            window.addEventListener('DOMContentLoaded', () => {
+                const height = document.body.scrollHeight;
+                ipcRenderer.send('resize-menu', { width: 280, height: height });
+            });
+
             // 更新透明度显示
             function updateOpacityDisplay(value) {
                 const percentage = Math.round(value * 100);
@@ -359,6 +361,14 @@ function createMenuWindow() {
                     pinCheckbox.classList.add('checked');
                 } else {
                     pinCheckbox.classList.remove('checked');
+                }
+            });
+
+            // 监听全屏状态更新
+            ipcRenderer.on('update-fullscreen-state', (event, state) => {
+                const fullscreenValue = document.getElementById('fullscreenValue');
+                if (fullscreenValue) {
+                    fullscreenValue.textContent = state ? '开启' : '关闭';
                 }
             });
 
@@ -418,6 +428,9 @@ function createMenuWindow() {
                         case 'fake-wallpaper':
                             ipcRenderer.send('menu-action', 'fake-wallpaper');
                             break;
+                        case 'toggle-fullscreen':
+                            ipcRenderer.send('menu-action', 'toggle-fullscreen');
+                            break;
                     }
                 });
             });
@@ -463,11 +476,23 @@ function createMenuWindow() {
     // 监听菜单窗口隐藏事件，重新注册全局快捷键
     menuWindow.on('hide', () => {
         myShortcutKey.registerAllShortcuts();
-        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
-            mainWindow.focus();
+        // 不再强制 focus 主窗口，避免切换桌面
+    });
+
+    // 菜单窗口失去焦点时自动隐藏（替代 ESC 键功能）
+    menuWindow.on('blur', () => {
+        if (menuWindow && !menuWindow.isDestroyed() && menuWindow.isVisible()) {
+            menuWindow.hide();
         }
     });
 }
+
+// 监听菜单窗口调整大小的请求
+ipcMain.on('resize-menu', (event, { width, height }) => {
+    if (menuWindow && !menuWindow.isDestroyed()) {
+        menuWindow.setSize(width, height);
+    }
+});
 
 // 监听关闭菜单的请求（模块级注册，避免重复注册）
 ipcMain.on('close-menu', () => {
@@ -482,6 +507,17 @@ ipcMain.on('focus-menu-window', () => {
         menuWindow.focus();
     }
 });
+
+// 清除网页缓存（保留 cookie）
+async function clearWebViewCache() {
+    if (webView && !webView.webContents.isDestroyed()) {
+        const ses = webView.webContents.session;
+        await ses.clearCache();
+        console.log('缓存已清除');
+    }
+}
+
+ipcMain.on('clear-cache', clearWebViewCache);
 
 // 监听渲染进程发送的事件，加载指定网址(index.html 中的搜索按钮传来的地址)
 ipcMain.on("load-url", (event, url) => {
@@ -537,6 +573,7 @@ ipcMain.on('menu-action', (event, action, data) => {
                 mainWindow.setBrowserView(playerView);
                 playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
                 currentView = 'player';
+                mainWindow.show();
             }
             break;
         case 'go-to-home':
@@ -544,6 +581,7 @@ ipcMain.on('menu-action', (event, action, data) => {
                 mainWindow.setBrowserView(webView);
                 webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
                 currentView = 'web';
+                mainWindow.show();
             }
             break;
         case 'toggle-ignore-mouse':
@@ -610,6 +648,9 @@ ipcMain.on('menu-action', (event, action, data) => {
                     menuWindow.focus();
                 }
                 break;
+            case 'toggle-fullscreen':
+                handleToggleFullscreen();
+                break;
     }
 });
 
@@ -644,6 +685,7 @@ function handleBossKey() {
             playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         }
         currentView = prevView;
+        mainWindow.show();
     } else {
         viewBeforeBoss = currentView;
         if (!fakeView) {
@@ -659,6 +701,7 @@ function handleBossKey() {
         mainWindow.setBrowserView(fakeView);
         fakeView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         currentView = 'fake';
+        mainWindow.show();
     }
 }
 
@@ -679,6 +722,7 @@ async function handleFakeWallpaper() {
         isFakeWallpaper = false;
         mainWindow.setBrowserView(webView);
         webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        mainWindow.show();
         return;
     }
     try {
@@ -719,6 +763,56 @@ async function handleFakeWallpaper() {
     }
 }
 
+let isPseudoFullscreen = false;
+let preFullscreenBounds = null;
+
+function handleToggleFullscreen() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    const currentBounds = mainWindow.getBounds();
+    const display = screen.getDisplayMatching(currentBounds);
+    const workArea = display.workArea;
+
+    // 使用 workArea 检测是否全屏（workArea 排除了菜单栏）
+    const isCurrentlyFullscreen = (
+        currentBounds.width >= workArea.width - 5 &&
+        currentBounds.height >= workArea.height - 5 &&
+        Math.abs(currentBounds.x - workArea.x) < 10 &&
+        Math.abs(currentBounds.y - workArea.y) < 10
+    );
+
+    if (isCurrentlyFullscreen) {
+        // 当前是全屏，退出全屏
+        if (preFullscreenBounds) {
+            mainWindow.setBounds(preFullscreenBounds);
+        } else {
+            mainWindow.setBounds({
+                x: workArea.x + 100,
+                y: workArea.y + 100,
+                width: 500,
+                height: 380
+            });
+        }
+        preFullscreenBounds = null;
+        isPseudoFullscreen = false;
+    } else {
+        // 当前不是全屏，进入全屏
+        preFullscreenBounds = currentBounds;
+        mainWindow.setBounds({
+            x: workArea.x,
+            y: workArea.y,
+            width: workArea.width,
+            height: workArea.height
+        });
+        isPseudoFullscreen = true;
+    }
+
+    // 同步状态到菜单窗口
+    if (menuWindow && !menuWindow.isDestroyed()) {
+        menuWindow.webContents.send('update-fullscreen-state', isPseudoFullscreen);
+    }
+}
+
 function createTray() {
     // 从文件加载图标，使用64x64的图标
     const iconPath = path.join(__dirname, 'cat-fish.png');
@@ -727,28 +821,21 @@ function createTray() {
     tray = new Tray(trayIcon);
     tray.setToolTip('透明浏览器控制菜单');
 
-    // 点击托盘图标时切换菜单窗口的显示/隐藏
+    // 点击托盘图标时切换菜单窗口的显示/隐藏（不影响主窗口状态）
     tray.on('click', (event, bounds) => {
         if (menuWindow.isVisible()) {
             menuWindow.hide();
-        } else if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-            // 窗口隐藏时，点击托盘图标恢复显示
-            mainWindow.show();
-            mainWindow.focus();
         } else {
-            // 窗口可见时，显示菜单
             const x = bounds.x + bounds.width / 2 - 140;
             const y = bounds.y + bounds.height + 5;
             menuWindow.setPosition(Math.round(x), Math.max(0, Math.round(y - 140)));
 
-            menuWindow.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
+            // 先显示窗口，再设置可见性
+            menuWindow.showInactive();
             menuWindow.setAlwaysOnTop(true, 'screen-saver');
+            menuWindow.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
 
-            menuWindow.show();
-            menuWindow.focus();
-
-            // 发送当前的透明度值（使用共享变量）
-            if (mainWindow && menuWindow) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
                 const currentOpacity = mainWindow.getOpacity();
                 myShortcutKey.setCurrentOpacity(currentOpacity);
                 menuWindow.webContents.send('update-opacity', currentOpacity);
@@ -776,11 +863,17 @@ function createWindow() {
         alwaysOnTop: true,
         backgroundColor: '#000000',
         icon: path.join(__dirname, 'cat-fish.png'),
+        fullscreenable: false,  // 禁止系统全屏
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         }
+    });
+
+    // 阻止进入全屏
+    mainWindow.on('enter-html-full-screen', (e) => {
+        e.preventDefault();
     });
 
     webView = new BrowserView({
@@ -792,6 +885,11 @@ function createWindow() {
         }
     });
     webView.webContents.loadFile(path.join(__dirname, "index.html"));
+
+    // 阻止 webView 中的视频全屏触发系统全屏
+    webView.webContents.on('enter-html-full-screen', (e) => {
+        e.preventDefault();
+    });
 
     // 播放器视图在首次使用时才创建，避免启动时弹出提示
     playerView = null;
@@ -874,6 +972,28 @@ function createWindow() {
             // 获取当前窗口的尺寸
             const {width, height} = mainWindow.getBounds();
 
+            // 检测是否处于全屏状态（使用 workArea，排除菜单栏）
+            const display = screen.getDisplayMatching(mainWindow.getBounds());
+            const workArea = display.workArea;
+            const isNowFullscreen = (
+                width >= workArea.width - 5 &&
+                height >= workArea.height - 5 &&
+                Math.abs(mainWindow.getBounds().x - workArea.x) < 10 &&
+                Math.abs(mainWindow.getBounds().y - workArea.y) < 10
+            );
+
+            // 如果全屏状态发生变化，同步到菜单
+            if (isNowFullscreen !== isPseudoFullscreen) {
+                // 进入全屏时，保存当前窗口大小（用于退出时恢复）
+                if (isNowFullscreen && !preFullscreenBounds) {
+                    preFullscreenBounds = { x: display.bounds.x + 100, y: display.bounds.y + 100, width: 500, height: 380 };
+                }
+                isPseudoFullscreen = isNowFullscreen;
+                if (menuWindow && !menuWindow.isDestroyed()) {
+                    menuWindow.webContents.send('update-fullscreen-state', isPseudoFullscreen);
+                }
+            }
+
             // 调整当前显示的 BrowserView 大小
             if (isFakeWallpaper && fakeWallpaperView && !fakeWallpaperView.webContents.isDestroyed()) {
                 fakeWallpaperView.setBounds({ x: 0, y: 0, width, height });
@@ -888,6 +1008,27 @@ function createWindow() {
             }
         } catch (error) {
             console.error('调整窗口大小时出错:', error);
+        }
+    });
+
+    // 监听窗口移动事件（macOS 双击标题栏会触发）
+    mainWindow.on("moved", () => {
+        try {
+            const {width, height} = mainWindow.getBounds();
+            const display = screen.getDisplayMatching(mainWindow.getBounds());
+            const isNowFullscreen = (width >= display.bounds.width && height >= display.bounds.height);
+
+            if (isNowFullscreen !== isPseudoFullscreen) {
+                if (isNowFullscreen && !preFullscreenBounds) {
+                    preFullscreenBounds = { x: display.bounds.x + 100, y: display.bounds.y + 100, width: 500, height: 380 };
+                }
+                isPseudoFullscreen = isNowFullscreen;
+                if (menuWindow && !menuWindow.isDestroyed()) {
+                    menuWindow.webContents.send('update-fullscreen-state', isPseudoFullscreen);
+                }
+            }
+        } catch (error) {
+            // ignore
         }
     });
 
@@ -945,6 +1086,7 @@ function createWindow() {
 app.on("ready", () => {
     createWindow();
     myShortcutKey.registerPermanentShortcuts();
+    startCookieServer(9876, () => webView ? webView.webContents.session : null, clearWebViewCache);
     // 再次确保 dock 图标隐藏（创建窗口后 macOS 可能会重新显示 dock 图标）
     if (is_mac) {
         app.dock.hide();
