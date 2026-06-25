@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "摸鱼助手",
+  "version": "1.0",
+  "description": "同步登录状态到摸鱼应用",
+  "permissions": [
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

@@ -1,63 +1,120 @@
-# moyu（摸鱼）
+# 摸鱼 (Moyu)
 
-基于 Electron 的 macOS 透明悬浮应用。窗口置顶、半透明、跨桌面显示，可在任何应用之上浏览网页或播放视频，配合系统托盘菜单快捷控制。适合"摸鱼"。
+一款专为 macOS 设计的透明悬浮浏览器，让你在工作时也能偷偷摸鱼。
 
-## 功能
+## 功能特性
 
-- **透明悬浮窗**：默认 30% 透明度，可调（0.025 ~ 1），始终置顶于所有窗口之上（`screen-saver` 层级），跨所有桌面/Space 跟随显示
-- **双视图切换**：
-  - 网页浏览（`index.html` + BrowserView）：内置搜索框，支持前进/后退
-  - 视频播放器（`player.html`）：HTML5 视频播放
-- **系统托盘菜单**：点击托盘图标弹出自定义菜单窗口，包含：
-  - 前进 / 后退导航
-  - 切换到播放器 / 网页浏览
-  - 忽略鼠标事件（点击穿透）
-  - 调整透明度
-  - 固定窗口开关
-  - 退出
-- **全局快捷键**（窗口聚焦时生效）：
+### 核心功能
 
-  | 快捷键 | 功能 |
-  | --- | --- |
-  | `⌘ ←` / `⌘ →` | 后退 / 前进（仅网页视图） |
-  | `⌘ -` / `⌘ =` | 减小 / 增加透明度 |
-  | `⌘ D` | 切换忽略鼠标事件 |
-  | `⌘ F` | 切换固定窗口 |
+- **透明悬浮窗**：默认 30% 透明度，可调节（2.5% ~ 100%），始终悬浮在所有窗口之上
+- **网页浏览**：内置搜索框，支持前进/后退导航，自动在窗口内打开链接
+- **视频播放**：独立的 HTML5 视频播放器视图
+- **跨桌面显示**：支持在所有桌面 Space 和全屏应用上方显示
 
-- **macOS 集成**：隐藏 Dock 图标（纯托盘应用），支持 macOS 原生「隐藏 / 显示应用」（⌘H）
+### 隐私保护
 
-## 目录结构
+- **伪装代码模式**（`⌘⇧B`）：一键切换到仿真的 VS Code 终端界面
+- **假桌面壁纸**：截取当前屏幕作为背景，完美伪装
+- **快速隐藏**（`⌘⇧H`）：一键隐藏/显示窗口
+- **忽略鼠标事件**：开启后鼠标点击穿透窗口，不影响下方操作
 
-```
-yu-app/
-├── main.js              # 主进程：窗口/托盘/菜单/快捷键注册
-├── shortcutKeys.js      # 全局快捷键与窗口操作逻辑
-├── index.html           # 网页浏览视图
-├── player.html          # 视频播放器视图
-├── forge.config.js      # electron-forge 打包配置
-├── cat-fish.png         # 托盘图标
-└── package.json
-```
+### 窗口控制
 
-## 开发与运行
+- **固定窗口**：切换是否始终在最上层
+- **铺满屏幕**：伪全屏模式，铺满当前屏幕但不切换桌面
+- **透明度调节**：macOS 风格滑动条，实时调节窗口透明度
+
+### Chrome 登录同步
+
+通过 Chrome 扩展同步登录状态，无需重复登录：
+
+1. 安装 `chrome-extension/` 目录下的 Chrome 扩展
+2. 在 Chrome 中登录网站
+3. 点击扩展图标 → 同步登录状态
+4. 在摸鱼应用中直接访问已登录的网站
+
+## 安装使用
+
+### 开发模式
 
 ```bash
 # 安装依赖
 npm install
 
-# 开发模式启动（electron-forge）
+# 启动应用
 npm start
-
-# 打包
-npm run package    # 打包当前平台
-npm run make       # 生成安装包
 ```
 
-> 依赖：Electron 25.x、electron-forge 6.x
+### 打包安装
 
-## 技术说明
+```bash
+# 打包当前平台
+npm run package
 
-- 使用 `BrowserView` 实现网页视图与播放器视图的切换
-- 主窗口使用 `screen-saver` 层级 + `visibleOnAllWorkspaces` 实现真正的全局置顶
-- `setVisibleOnAllWorkspaces(true)` 会使进程从 accessory 转为 foreground，这是 macOS 原生 Hide/Show 能生效的前提；设为 `false` 时通过 `skipTransformProcessType: true` 避免被打回 accessory
-- 托盘菜单窗口不设置 `visibleOnAllWorkspaces`，菜单关闭后焦点交还主窗口，保证原生 Hide/Show 不受影响
+# 生成安装包
+npm run make
+```
+
+## 目录结构
+
+```
+yu-app/
+├── main.js              # 主进程：窗口管理、托盘菜单、IPC 通信
+├── shortcutKeys.js      # 全局快捷键注册与管理
+├── cookie-server.js     # Chrome Cookie 同步服务
+├── preload.js           # 预加载脚本：安全的 IPC 通信桥梁
+├── index.html           # 网页浏览视图
+├── player.html          # 视频播放器视图
+├── fakeScreen.html      # 伪装代码界面（VS Code 终端）
+├── chrome-extension/    # Chrome 扩展（用于同步登录状态）
+│   ├── manifest.json    # 扩展配置
+│   ├── popup.html       # 扩展弹窗界面
+│   ├── popup.js         # 扩展逻辑
+│   └── icon.png         # 扩展图标
+├── cat-fish.png         # 应用图标
+├── forge.config.js      # Electron Forge 打包配置
+└── package.json
+```
+
+## 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `⌘⇧B` | 切换伪装代码模式 |
+| `⌘⇧H` | 快速隐藏/显示窗口 |
+| `⌘←` / `⌘→` | 网页后退/前进 |
+| `⌘-` / `⌘=` | 减小/增加透明度 |
+
+## 菜单功能
+
+点击系统托盘图标打开菜单：
+
+| 功能 | 说明 |
+|------|------|
+| 后退/前进 | 网页导航（仅网页视图生效）|
+| 伪装代码 | 切换到 VS Code 终端界面 |
+| 快速隐藏 | 一键隐藏窗口 |
+| 假桌面壁纸 | 截取屏幕作为背景 |
+| 铺满屏幕 | 伪全屏，不切换桌面 |
+| 忽略鼠标事件 | 点击穿透窗口 |
+| 透明度 | 滑动条调节（macOS 风格）|
+| 固定窗口 | 切换始终置顶 |
+| 退出 | 关闭应用 |
+
+## 技术实现
+
+- **Electron 25.x** + **Electron Forge 6.x**
+- 使用 `BrowserView` 实现多视图切换
+- `screen-saver` 层级 + `visibleOnAllWorkspaces` 实现全局置顶
+- 本地 HTTP 服务（端口 9876）接收 Chrome 扩展发送的 Cookie
+- macOS Keychain 集成，Dock 图标隐藏
+
+## 系统要求
+
+- macOS 10.15+
+- Node.js 16+
+- Chrome 浏览器（可选，用于登录状态同步）
+
+## 许可证
+
+MIT

@@ -79,11 +79,11 @@ function createMenuWindow() {
                 position: relative;
             }
             .menu-item:hover {
-                background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-                color: #667eea;
+                background: rgba(0, 0, 0, 0.05);
+                color: #333;
             }
             .menu-item:active {
-                background: linear-gradient(90deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+                background: rgba(0, 0, 0, 0.08);
             }
             .menu-item-left {
                 display: flex;
@@ -94,6 +94,15 @@ function createMenuWindow() {
                 font-size: 18px;
                 width: 24px;
                 text-align: center;
+                color: #8e8e93;
+                transition: color 0.2s ease;
+            }
+            .menu-item:hover .menu-item-icon {
+                color: #667eea;
+            }
+            .menu-item-icon svg {
+                display: block;
+                margin: 0 auto;
             }
             .menu-item-label {
                 font-weight: 500;
@@ -112,33 +121,76 @@ function createMenuWindow() {
             }
             .menu-separator {
                 height: 1px;
-                background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
-                margin: 6px 12px;
+                background: rgba(0, 0, 0, 0.1);
+                margin: 4px 16px;
             }
-            .checkbox-container {
+            .toggle-switch {
+                position: relative;
+                width: 44px;
+                height: 24px;
+                background: #e5e5ea;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            }
+            .toggle-switch.active {
+                background: #34c759;
+            }
+            .toggle-switch::after {
+                content: '';
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 20px;
+                height: 20px;
+                background: white;
+                border-radius: 50%;
+                transition: transform 0.2s ease;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            }
+            .toggle-switch.active::after {
+                transform: translateX(20px);
+            }
+            .slider-container {
                 display: flex;
                 align-items: center;
                 gap: 10px;
+                flex: 1;
             }
-            .checkbox {
-                width: 18px;
-                height: 18px;
-                border: 2px solid #cbd5e0;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
+            .slider {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 120px;
+                height: 6px;
+                background: linear-gradient(to right, #007aff 0%, #007aff var(--slider-percent, 30%), #e5e5ea var(--slider-percent, 30%), #e5e5ea 100%);
+                border-radius: 3px;
+                outline: none;
+                transition: background 0.1s ease;
             }
-            .checkbox.checked {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border-color: #667eea;
+            .slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 20px;
+                height: 20px;
+                background: white;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+                transition: transform 0.1s ease;
             }
-            .checkbox.checked::after {
-                content: '✓';
-                color: white;
-                font-size: 13px;
-                font-weight: bold;
+            .slider::-webkit-slider-thumb:hover {
+                transform: scale(1.1);
+            }
+            .slider::-webkit-slider-thumb:active {
+                transform: scale(0.95);
+                box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.08);
+            }
+            .slider-value {
+                font-size: 12px;
+                color: #8e8e93;
+                min-width: 35px;
+                text-align: right;
+                font-variant-numeric: tabular-nums;
             }
             .danger {
                 color: #fc8181 !important;
@@ -147,56 +199,30 @@ function createMenuWindow() {
                 background: linear-gradient(90deg, rgba(252, 129, 129, 0.1) 0%, rgba(245, 101, 101, 0.1) 100%) !important;
                 color: #e53e3e !important;
             }
-            .control-buttons {
-                display: flex;
-                gap: 8px;
+            .danger .menu-item-icon {
+                color: #fc8181 !important;
             }
-            .control-btn {
-                width: 28px;
-                height: 28px;
-                border: none;
-                border-radius: 6px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
-                box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-            }
-            .control-btn:hover {
-                transform: scale(1.1);
-                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-            }
-            .control-btn:active {
-                transform: scale(0.95);
+            .danger:hover .menu-item-icon {
+                color: #e53e3e !important;
             }
             .nav-item {
-                background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-                border: 1px solid rgba(102, 126, 234, 0.2);
-                border-radius: 8px;
+                background: transparent;
+                border: none;
+                border-radius: 6px;
                 margin: 0 8px;
-                padding: 10px 14px;
-                transition: all 0.2s ease;
+                padding: 8px 12px;
+                transition: all 0.15s ease;
             }
             .nav-item:hover {
-                background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
-                border-color: rgba(102, 126, 234, 0.4);
-                transform: translateY(-1px);
-                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+                background: rgba(0, 0, 0, 0.05);
             }
             .nav-controls {
                 display: flex;
-                gap: 6px;
+                gap: 8px;
                 justify-content: center;
                 align-items: center;
-                padding: 10px 12px;
+                padding: 12px 12px;
                 margin: 0 8px;
-                background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
-                border-radius: 8px;
             }
             .menu-item-shortcut {
                 font-size: 11px;
@@ -210,33 +236,48 @@ function createMenuWindow() {
             .nav-btn {
                 flex: 1;
                 min-width: 80px;
-                padding: 8px 8px;
+                padding: 8px 12px;
                 border: none;
                 border-radius: 6px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                font-size: 11px;
-                font-weight: 600;
+                background: #f5f5f5;
+                color: #333;
+                font-size: 12px;
+                font-weight: 500;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                box-shadow: 0 2px 4px rgba(102, 126, 234, 0.25);
                 white-space: nowrap;
                 text-align: center;
                 line-height: 1.2;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
             }
             .nav-btn:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(102, 126, 234, 0.35);
+                background: #e8e8e8;
             }
             .nav-btn:active {
-                transform: translateY(0);
+                background: #ddd;
+            }
+            .nav-btn svg {
+                flex-shrink: 0;
             }
         </style>
     </head>
     <body>
         <div class="nav-controls">
-            <button class="nav-btn" data-action="backward">⬅️ 后退 (⌘←)</button>
-            <button class="nav-btn" data-action="forward">➡️ 前进 (⌘→)</button>
+            <button class="nav-btn" data-action="backward">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                后退
+            </button>
+            <button class="nav-btn" data-action="forward">
+                前进
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
         </div>
         <div style="text-align: center; font-size: 10px; color: #999; margin: -8px 0 8px 0;">*仅在网页视图生效</div>
 
@@ -244,15 +285,22 @@ function createMenuWindow() {
 
         <div class="menu-item nav-item" data-action="boss-key">
             <div class="menu-item-left">
-                <span class="menu-item-icon">👨‍💻</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
                 <span class="menu-item-label">伪装代码</span>
             </div>
-            <span class="menu-item-shortcut">⌘⇧B</span>
+            <div class="toggle-switch" id="bossKeyToggle"></div>
         </div>
 
         <div class="menu-item nav-item" data-action="quick-hide">
             <div class="menu-item-left">
-                <span class="menu-item-icon">👻</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
                 <span class="menu-item-label">快速隐藏</span>
             </div>
             <span class="menu-item-shortcut">⌘⇧H</span>
@@ -260,61 +308,86 @@ function createMenuWindow() {
 
         <div class="menu-item nav-item" data-action="fake-wallpaper">
             <div class="menu-item-left">
-                <span class="menu-item-icon">🖥️</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                    <rect x="6" y="7" width="12" height="6" rx="1"></rect>
+                </svg>
                 <span class="menu-item-label">假桌面壁纸</span>
             </div>
+            <div class="toggle-switch" id="fakeWallpaperToggle"></div>
         </div>
 
         <div class="menu-item nav-item" data-action="toggle-fullscreen">
             <div class="menu-item-left">
-                <span class="menu-item-icon">📺</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
                 <span class="menu-item-label">铺满屏幕</span>
             </div>
-            <span class="menu-item-value" id="fullscreenValue">关闭</span>
+            <div class="toggle-switch" id="fullscreenToggle"></div>
         </div>
 
         <div class="menu-separator"></div>
 
         <div class="menu-item" data-action="toggle-ignore-mouse">
-            <div class="checkbox-container">
-                <div class="checkbox" id="ignoreMouseCheckbox"></div>
+            <div class="menu-item-left">
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                    <circle cx="12" cy="14" r="4"></circle>
+                    <line x1="12" y1="6" x2="12" y2="6.01"></line>
+                </svg>
                 <span class="menu-item-label">忽略鼠标事件</span>
             </div>
-            <span class="menu-item-shortcut">⌘D</span>
+            <div class="toggle-switch" id="ignoreMouseToggle"></div>
+        </div>
+
+        <div class="menu-separator"></div>
+
+        <div class="menu-item" data-action="toggle-pin">
+            <div class="menu-item-left">
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 17v5"></path>
+                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1 1 0 0 0 1-1V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1 1 1 0 0 1 1 1z"></path>
+                </svg>
+                <span class="menu-item-label">固定窗口</span>
+            </div>
+            <div class="toggle-switch active" id="pinToggle"></div>
         </div>
 
         <div class="menu-separator"></div>
 
         <div class="menu-item">
             <div class="menu-item-left">
-                <span class="menu-item-icon">🎨</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
                 <span class="menu-item-label">透明度</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span class="menu-item-value" id="opacityValue">30%</span>
-                <div class="control-buttons">
-                    <button class="control-btn" data-action="decrease-opacity">−</button>
-                    <button class="control-btn" data-action="increase-opacity">+</button>
-                </div>
-                <span class="menu-item-shortcut">⌘- ⌘+</span>
+            <div class="slider-container">
+                <input type="range" class="slider" id="opacitySlider" min="2.5" max="100" value="30" step="2.5">
+                <span class="slider-value" id="opacityValue">30%</span>
             </div>
-        </div>
-
-        <div class="menu-separator"></div>
-
-        <div class="menu-item" data-action="toggle-pin">
-            <div class="checkbox-container">
-                <div class="checkbox checked" id="pinCheckbox"></div>
-                <span class="menu-item-label">固定窗口</span>
-            </div>
-            <span class="menu-item-shortcut">⌘F</span>
         </div>
 
         <div class="menu-separator"></div>
 
         <div class="menu-item danger" data-action="quit">
             <div class="menu-item-left">
-                <span class="menu-item-icon">❌</span>
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
                 <span class="menu-item-label">退出</span>
             </div>
         </div>
@@ -323,17 +396,121 @@ function createMenuWindow() {
             let ignoreMouseEvents = false;
             let isPinned = true;
             let currentOpacity = 0.3;
+            let isBossKeyActive = false;
+            let isFakeWallpaperActive = false;
+            let isFullscreenActive = false;
 
             // 页面加载完成后，通知主进程调整窗口大小
             window.addEventListener('DOMContentLoaded', () => {
                 const height = document.body.scrollHeight;
                 ipcRenderer.send('resize-menu', { width: 280, height: height });
+
+                // 滑动条事件
+                const opacitySlider = document.getElementById('opacitySlider');
+                const opacityValue = document.getElementById('opacityValue');
+                
+                // 初始化滑动条样式
+                function updateSliderStyle(value) {
+                    opacitySlider.style.setProperty('--slider-percent', value + '%');
+                }
+                
+                // 初始化
+                updateSliderStyle(opacitySlider.value);
+                
+                opacitySlider.addEventListener('input', (e) => {
+                    const value = e.target.value / 100;
+                    currentOpacity = value;
+                    opacityValue.textContent = e.target.value + '%';
+                    updateSliderStyle(e.target.value);
+                    ipcRenderer.send('menu-action', 'set-opacity', value);
+                });
+
+                // 滑动开关点击事件
+                document.querySelectorAll('.toggle-switch').forEach(toggle => {
+                    toggle.addEventListener('click', () => {
+                        const menuItem = toggle.closest('.menu-item');
+                        const action = menuItem.dataset.action;
+                        if (!action) return;
+
+                        if (action === 'toggle-ignore-mouse') {
+                            ignoreMouseEvents = !ignoreMouseEvents;
+                            if (ignoreMouseEvents) {
+                                toggle.classList.add('active');
+                            } else {
+                                toggle.classList.remove('active');
+                            }
+                            ipcRenderer.send('menu-action', 'toggle-ignore-mouse', ignoreMouseEvents);
+                        } else if (action === 'toggle-pin') {
+                            isPinned = !isPinned;
+                            if (isPinned) {
+                                toggle.classList.add('active');
+                            } else {
+                                toggle.classList.remove('active');
+                            }
+                            ipcRenderer.send('menu-action', 'toggle-pin', isPinned);
+                        } else if (action === 'boss-key') {
+                            isBossKeyActive = !isBossKeyActive;
+                            if (isBossKeyActive) {
+                                toggle.classList.add('active');
+                            } else {
+                                toggle.classList.remove('active');
+                            }
+                            ipcRenderer.send('menu-action', 'boss-key');
+                        } else if (action === 'fake-wallpaper') {
+                            isFakeWallpaperActive = !isFakeWallpaperActive;
+                            if (isFakeWallpaperActive) {
+                                toggle.classList.add('active');
+                            } else {
+                                toggle.classList.remove('active');
+                            }
+                            ipcRenderer.send('menu-action', 'fake-wallpaper');
+                        } else if (action === 'toggle-fullscreen') {
+                            isFullscreenActive = !isFullscreenActive;
+                            if (isFullscreenActive) {
+                                toggle.classList.add('active');
+                            } else {
+                                toggle.classList.remove('active');
+                            }
+                            ipcRenderer.send('menu-action', 'toggle-fullscreen');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.menu-item:not([data-action="toggle-ignore-mouse"]):not([data-action="toggle-pin"]):not([data-action="boss-key"]):not([data-action="fake-wallpaper"]):not([data-action="toggle-fullscreen"]), .nav-btn').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const action = item.dataset.action;
+                        if (!action) return;
+
+                        switch(action) {
+                            case 'forward':
+                                ipcRenderer.send('menu-action', 'forward');
+                                break;
+                            case 'backward':
+                                ipcRenderer.send('menu-action', 'backward');
+                                break;
+                            case 'go-to-player':
+                                ipcRenderer.send('menu-action', 'go-to-player');
+                                break;
+                            case 'go-to-home':
+                                ipcRenderer.send('menu-action', 'go-to-home');
+                                break;
+                            case 'quit':
+                                ipcRenderer.send('menu-action', 'quit');
+                                break;
+                            case 'quick-hide':
+                                ipcRenderer.send('menu-action', 'quick-hide');
+                                break;
+                        }
+                    });
+                });
             });
 
             // 更新透明度显示
             function updateOpacityDisplay(value) {
                 const percentage = Math.round(value * 100);
                 document.getElementById('opacityValue').textContent = percentage + '%';
+                document.getElementById('opacitySlider').value = percentage;
+                document.getElementById('opacitySlider').style.setProperty('--slider-percent', percentage + '%');
             }
 
             // 监听透明度更新
@@ -345,94 +522,62 @@ function createMenuWindow() {
             // 监听忽略鼠标事件状态更新
             ipcRenderer.on('update-ignore-mouse-state', (event, state) => {
                 ignoreMouseEvents = state;
-                const checkbox = document.getElementById('ignoreMouseCheckbox');
+                const toggle = document.getElementById('ignoreMouseToggle');
                 if (ignoreMouseEvents) {
-                    checkbox.classList.add('checked');
+                    toggle.classList.add('active');
                 } else {
-                    checkbox.classList.remove('checked');
+                    toggle.classList.remove('active');
                 }
             });
 
             // 监听固定窗口状态更新
             ipcRenderer.on('update-pin-state', (event, state) => {
                 isPinned = state;
-                const pinCheckbox = document.getElementById('pinCheckbox');
+                const toggle = document.getElementById('pinToggle');
                 if (isPinned) {
-                    pinCheckbox.classList.add('checked');
+                    toggle.classList.add('active');
                 } else {
-                    pinCheckbox.classList.remove('checked');
+                    toggle.classList.remove('active');
                 }
             });
 
             // 监听全屏状态更新
             ipcRenderer.on('update-fullscreen-state', (event, state) => {
-                const fullscreenValue = document.getElementById('fullscreenValue');
-                if (fullscreenValue) {
-                    fullscreenValue.textContent = state ? '开启' : '关闭';
+                isFullscreenActive = state;
+                const toggle = document.getElementById('fullscreenToggle');
+                if (toggle) {
+                    if (isFullscreenActive) {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
+                    }
                 }
             });
 
-            document.querySelectorAll('.menu-item, .control-btn, .nav-btn').forEach(item => {
-                item.addEventListener('click', () => {
-                    const action = item.dataset.action;
-                    if (!action) return;
-
-                    switch(action) {
-                        case 'forward':
-                            ipcRenderer.send('menu-action', 'forward');
-                            break;
-                        case 'backward':
-                            ipcRenderer.send('menu-action', 'backward');
-                            break;
-                        case 'go-to-player':
-                            ipcRenderer.send('menu-action', 'go-to-player');
-                            break;
-                        case 'go-to-home':
-                            ipcRenderer.send('menu-action', 'go-to-home');
-                            break;
-                        case 'toggle-ignore-mouse':
-                            ignoreMouseEvents = !ignoreMouseEvents;
-                            const checkbox = document.getElementById('ignoreMouseCheckbox');
-                            if (ignoreMouseEvents) {
-                                checkbox.classList.add('checked');
-                            } else {
-                                checkbox.classList.remove('checked');
-                            }
-                            ipcRenderer.send('menu-action', 'toggle-ignore-mouse', ignoreMouseEvents);
-                            break;
-                        case 'increase-opacity':
-                            ipcRenderer.send('menu-action', 'increase-opacity');
-                            break;
-                        case 'decrease-opacity':
-                            ipcRenderer.send('menu-action', 'decrease-opacity');
-                            break;
-                        case 'toggle-pin':
-                            isPinned = !isPinned;
-                            const pinCheckbox = document.getElementById('pinCheckbox');
-                            if (isPinned) {
-                                pinCheckbox.classList.add('checked');
-                            } else {
-                                pinCheckbox.classList.remove('checked');
-                            }
-                            ipcRenderer.send('menu-action', 'toggle-pin', isPinned);
-                            break;
-                        case 'quit':
-                            ipcRenderer.send('menu-action', 'quit');
-                            break;
-                        case 'boss-key':
-                            ipcRenderer.send('menu-action', 'boss-key');
-                            break;
-                        case 'quick-hide':
-                            ipcRenderer.send('menu-action', 'quick-hide');
-                            break;
-                        case 'fake-wallpaper':
-                            ipcRenderer.send('menu-action', 'fake-wallpaper');
-                            break;
-                        case 'toggle-fullscreen':
-                            ipcRenderer.send('menu-action', 'toggle-fullscreen');
-                            break;
+            // 监听伪装代码状态更新
+            ipcRenderer.on('update-boss-key-state', (event, state) => {
+                isBossKeyActive = state;
+                const toggle = document.getElementById('bossKeyToggle');
+                if (toggle) {
+                    if (isBossKeyActive) {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
                     }
-                });
+                }
+            });
+
+            // 监听假桌面壁纸状态更新
+            ipcRenderer.on('update-fake-wallpaper-state', (event, state) => {
+                isFakeWallpaperActive = state;
+                const toggle = document.getElementById('fakeWallpaperToggle');
+                if (toggle) {
+                    if (isFakeWallpaperActive) {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
+                    }
+                }
             });
 
             // ESC 键关闭菜单
@@ -457,18 +602,6 @@ function createMenuWindow() {
 
             const ignoreMouseState = myShortcutKey.getIgnoreMouseEventsState();
             menuWindow.webContents.send('update-ignore-mouse-state', ignoreMouseState);
-            menuWindow.webContents.executeJavaScript(`
-                if (typeof ignoreMouseEvents !== 'undefined') {
-                    ignoreMouseEvents = ${ignoreMouseState};
-                    const checkbox = document.getElementById('ignoreMouseCheckbox');
-                    if (${ignoreMouseState}) {
-                        checkbox.classList.add('checked');
-                    } else {
-                        checkbox.classList.remove('checked');
-                    }
-                }
-            `);
-
             menuWindow.webContents.send('update-pin-state', mainWindow.isAlwaysOnTop());
         }
     });
@@ -477,13 +610,6 @@ function createMenuWindow() {
     menuWindow.on('hide', () => {
         myShortcutKey.registerAllShortcuts();
         // 不再强制 focus 主窗口，避免切换桌面
-    });
-
-    // 菜单窗口失去焦点时自动隐藏（替代 ESC 键功能）
-    menuWindow.on('blur', () => {
-        if (menuWindow && !menuWindow.isDestroyed() && menuWindow.isVisible()) {
-            menuWindow.hide();
-        }
     });
 }
 
@@ -596,24 +722,12 @@ ipcMain.on('menu-action', (event, action, data) => {
             if (menuWindow && !menuWindow.isDestroyed()) {
                 menuWindow.webContents.send('update-ignore-mouse-state', data);
             }
-            if (menuWindow && !menuWindow.isDestroyed()) {
-                menuWindow.focus();
-            }
             break;
-        case 'increase-opacity': {
+        case 'set-opacity': {
             if (!mainWindow || mainWindow.isDestroyed()) break;
-            myShortcutKey.incrOpacity();
-            if (menuWindow && !menuWindow.isDestroyed()) {
-                menuWindow.focus();
-            }
-            break;
-        }
-        case 'decrease-opacity': {
-            if (!mainWindow || mainWindow.isDestroyed()) break;
-            myShortcutKey.decrOpacity();
-            if (menuWindow && !menuWindow.isDestroyed()) {
-                menuWindow.focus();
-            }
+            const opacity = Math.max(0.025, Math.min(1, data));
+            mainWindow.setOpacity(opacity);
+            myShortcutKey.setCurrentOpacity(opacity);
             break;
         }
         case 'toggle-pin':
@@ -625,9 +739,6 @@ ipcMain.on('menu-action', (event, action, data) => {
             } else {
                 mainWindow.setAlwaysOnTop(true, "screen-saver");
                 mainWindow.setVisibleOnAllWorkspaces(true);
-            }
-            if (menuWindow && !menuWindow.isDestroyed()) {
-                menuWindow.focus();
             }
             break;
             case 'quit':
@@ -686,6 +797,10 @@ function handleBossKey() {
         }
         currentView = prevView;
         mainWindow.show();
+        // 更新菜单状态
+        if (menuWindow && !menuWindow.isDestroyed()) {
+            menuWindow.webContents.send('update-boss-key-state', false);
+        }
     } else {
         viewBeforeBoss = currentView;
         if (!fakeView) {
@@ -702,6 +817,10 @@ function handleBossKey() {
         fakeView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         currentView = 'fake';
         mainWindow.show();
+        // 更新菜单状态
+        if (menuWindow && !menuWindow.isDestroyed()) {
+            menuWindow.webContents.send('update-boss-key-state', true);
+        }
     }
 }
 
@@ -723,6 +842,10 @@ async function handleFakeWallpaper() {
         mainWindow.setBrowserView(webView);
         webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         mainWindow.show();
+        // 更新菜单状态
+        if (menuWindow && !menuWindow.isDestroyed()) {
+            menuWindow.webContents.send('update-fake-wallpaper-state', false);
+        }
         return;
     }
     try {
@@ -747,6 +870,10 @@ async function handleFakeWallpaper() {
         });
         const croppedDataUrl = cropped.toDataURL();
         isFakeWallpaper = true;
+        // 更新菜单状态
+        if (menuWindow && !menuWindow.isDestroyed()) {
+            menuWindow.webContents.send('update-fake-wallpaper-state', true);
+        }
         if (!fakeWallpaperView) {
             fakeWallpaperView = new BrowserView({
                 webPreferences: { nodeIntegration: false, contextIsolation: true }
@@ -769,19 +896,10 @@ let preFullscreenBounds = null;
 function handleToggleFullscreen() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
-    const currentBounds = mainWindow.getBounds();
-    const display = screen.getDisplayMatching(currentBounds);
+    const display = screen.getDisplayMatching(mainWindow.getBounds());
     const workArea = display.workArea;
 
-    // 使用 workArea 检测是否全屏（workArea 排除了菜单栏）
-    const isCurrentlyFullscreen = (
-        currentBounds.width >= workArea.width - 5 &&
-        currentBounds.height >= workArea.height - 5 &&
-        Math.abs(currentBounds.x - workArea.x) < 10 &&
-        Math.abs(currentBounds.y - workArea.y) < 10
-    );
-
-    if (isCurrentlyFullscreen) {
+    if (isPseudoFullscreen) {
         // 当前是全屏，退出全屏
         if (preFullscreenBounds) {
             mainWindow.setBounds(preFullscreenBounds);
@@ -797,13 +915,9 @@ function handleToggleFullscreen() {
         isPseudoFullscreen = false;
     } else {
         // 当前不是全屏，进入全屏
-        preFullscreenBounds = currentBounds;
-        mainWindow.setBounds({
-            x: workArea.x,
-            y: workArea.y,
-            width: workArea.width,
-            height: workArea.height
-        });
+        preFullscreenBounds = mainWindow.getBounds();
+        mainWindow.setPosition(workArea.x, workArea.y);
+        mainWindow.setSize(workArea.width, workArea.height);
         isPseudoFullscreen = true;
     }
 
@@ -986,7 +1100,7 @@ function createWindow() {
             if (isNowFullscreen !== isPseudoFullscreen) {
                 // 进入全屏时，保存当前窗口大小（用于退出时恢复）
                 if (isNowFullscreen && !preFullscreenBounds) {
-                    preFullscreenBounds = { x: display.bounds.x + 100, y: display.bounds.y + 100, width: 500, height: 380 };
+                    preFullscreenBounds = { x: workArea.x + 100, y: workArea.y + 100, width: 500, height: 380 };
                 }
                 isPseudoFullscreen = isNowFullscreen;
                 if (menuWindow && !menuWindow.isDestroyed()) {
@@ -1016,11 +1130,17 @@ function createWindow() {
         try {
             const {width, height} = mainWindow.getBounds();
             const display = screen.getDisplayMatching(mainWindow.getBounds());
-            const isNowFullscreen = (width >= display.bounds.width && height >= display.bounds.height);
+            const workArea = display.workArea;
+            const isNowFullscreen = (
+                width >= workArea.width - 5 &&
+                height >= workArea.height - 5 &&
+                Math.abs(mainWindow.getBounds().x - workArea.x) < 10 &&
+                Math.abs(mainWindow.getBounds().y - workArea.y) < 10
+            );
 
             if (isNowFullscreen !== isPseudoFullscreen) {
                 if (isNowFullscreen && !preFullscreenBounds) {
-                    preFullscreenBounds = { x: display.bounds.x + 100, y: display.bounds.y + 100, width: 500, height: 380 };
+                    preFullscreenBounds = { x: workArea.x + 100, y: workArea.y + 100, width: 500, height: 380 };
                 }
                 isPseudoFullscreen = isNowFullscreen;
                 if (menuWindow && !menuWindow.isDestroyed()) {
