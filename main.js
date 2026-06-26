@@ -379,6 +379,8 @@ function createMenuWindow() {
             </div>
         </div>
 
+
+
         <div class="menu-separator"></div>
 
         <div class="menu-item danger" data-action="quit">
@@ -399,6 +401,14 @@ function createMenuWindow() {
             let isBossKeyActive = false;
             let isFakeWallpaperActive = false;
             let isFullscreenActive = false;
+
+            // 更新透明度显示
+            function updateOpacityDisplay(value) {
+                const percentage = Math.round(value * 100);
+                document.getElementById('opacityValue').textContent = percentage + '%';
+                document.getElementById('opacitySlider').value = percentage;
+                document.getElementById('opacitySlider').style.setProperty('--slider-percent', percentage + '%');
+            }
 
             // 页面加载完成后，通知主进程调整窗口大小
             window.addEventListener('DOMContentLoaded', () => {
@@ -504,14 +514,6 @@ function createMenuWindow() {
                     });
                 });
             });
-
-            // 更新透明度显示
-            function updateOpacityDisplay(value) {
-                const percentage = Math.round(value * 100);
-                document.getElementById('opacityValue').textContent = percentage + '%';
-                document.getElementById('opacitySlider').value = percentage;
-                document.getElementById('opacitySlider').style.setProperty('--slider-percent', percentage + '%');
-            }
 
             // 监听透明度更新
             ipcRenderer.on('update-opacity', (event, value) => {
@@ -929,7 +931,7 @@ function handleToggleFullscreen() {
 
 function createTray() {
     // 从文件加载图标，使用64x64的图标
-    const iconPath = path.join(__dirname, 'cat-fish.png');
+    const iconPath = path.join(__dirname, 'tray-icon.png');
     const trayIcon = nativeImage.createFromPath(iconPath);
 
     tray = new Tray(trayIcon);
@@ -974,9 +976,10 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 500,
         height: 380,
+        title: '',
         alwaysOnTop: true,
         backgroundColor: '#000000',
-        icon: path.join(__dirname, 'cat-fish.png'),
+        icon: path.join(__dirname, 'icon.icns'),
         fullscreenable: false,  // 禁止系统全屏
         webPreferences: {
             nodeIntegration: false,
@@ -999,6 +1002,18 @@ function createWindow() {
         }
     });
     webView.webContents.loadFile(path.join(__dirname, "index.html"));
+
+    // 启用触控板捏合缩放
+    webView.webContents.setVisualZoomLevelLimits(1, 5);
+
+    // 每次导航完成后重新启用捏合缩放
+    webView.webContents.on('did-navigate', () => {
+        webView.webContents.setVisualZoomLevelLimits(1, 5);
+    });
+
+    webView.webContents.on('did-navigate-in-page', () => {
+        webView.webContents.setVisualZoomLevelLimits(1, 5);
+    });
 
     // 阻止 webView 中的视频全屏触发系统全屏
     webView.webContents.on('enter-html-full-screen', (e) => {
@@ -1074,6 +1089,7 @@ function createWindow() {
 
     // 监听网页视图的加载完成
     webView.webContents.on('did-finish-load', () => {
+        webView.webContents.setVisualZoomLevelLimits(1, 5);
         if (mainWindow.isAlwaysOnTop()) {
             mainWindow.setVisibleOnAllWorkspaces(true);
         } else {
@@ -1200,6 +1216,7 @@ function createWindow() {
             fakeWallpaperView = null;
         }
         mainWindow = null;
+        app.quit();
     });
 }
 
@@ -1207,10 +1224,6 @@ app.on("ready", () => {
     createWindow();
     myShortcutKey.registerPermanentShortcuts();
     startCookieServer(9876, () => webView ? webView.webContents.session : null, clearWebViewCache);
-    // 再次确保 dock 图标隐藏（创建窗口后 macOS 可能会重新显示 dock 图标）
-    if (is_mac) {
-        app.dock.hide();
-    }
 })
 
 app.on("activate", () => {
