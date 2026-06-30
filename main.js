@@ -9,12 +9,14 @@ let mainWindow;
 let menuWindow;
 let tray;
 let currentView = 'web'; // 当前显示的视图
+let barView; // 地址栏视图
 let webView; // 网页视图
 let playerView; // 播放器视图
 let fakeView; // 伪装代码视图
 let fakeWallpaperView; // 假桌面壁纸视图
 let viewBeforeBoss = null; // 老板键切换前的视图
 let isFakeWallpaper = false; // 假桌面壁纸状态
+const BAR_HEIGHT = 44; // 地址栏高度
 
 const is_mac = process.platform==='darwin'
 if(is_mac) {
@@ -280,6 +282,27 @@ function createMenuWindow() {
             </button>
         </div>
         <div style="text-align: center; font-size: 10px; color: #999; margin: -8px 0 8px 0;">*仅在网页视图生效</div>
+
+        <div class="menu-separator"></div>
+
+        <div class="menu-item nav-item" data-action="go-to-player">
+            <div class="menu-item-left">
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span class="menu-item-label">前往播放器</span>
+            </div>
+        </div>
+
+        <div class="menu-item nav-item" data-action="go-to-home">
+            <div class="menu-item-left">
+                <svg class="menu-item-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="menu-item-label">返回网页</span>
+            </div>
+        </div>
 
         <div class="menu-separator"></div>
 
@@ -647,6 +670,14 @@ async function clearWebViewCache() {
 
 ipcMain.on('clear-cache', clearWebViewCache);
 
+// 监听获取当前URL的请求
+ipcMain.on("get-current-url", (event) => {
+    if (webView && !webView.webContents.isDestroyed()) {
+        const url = webView.webContents.getURL();
+        event.sender.send('update-url', url);
+    }
+});
+
 // 监听渲染进程发送的事件，加载指定网址(index.html 中的搜索按钮传来的地址)
 ipcMain.on("load-url", (event, url) => {
     if (webView && !webView.webContents.isDestroyed()) {
@@ -698,7 +729,11 @@ ipcMain.on('menu-action', (event, action, data) => {
                         }
                     });
                 }
-                mainWindow.setBrowserView(playerView);
+                // 移除当前视图
+                if (barView) mainWindow.removeBrowserView(barView);
+                if (webView) mainWindow.removeBrowserView(webView);
+                // 添加播放器视图
+                mainWindow.addBrowserView(playerView);
                 playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
                 currentView = 'player';
                 mainWindow.show();
@@ -706,8 +741,15 @@ ipcMain.on('menu-action', (event, action, data) => {
             break;
         case 'go-to-home':
             if (mainWindow && !mainWindow.isDestroyed() && currentView !== 'web') {
-                mainWindow.setBrowserView(webView);
-                webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+                // 移除当前视图
+                if (playerView) mainWindow.removeBrowserView(playerView);
+                if (fakeView) mainWindow.removeBrowserView(fakeView);
+                // 添加地址栏和网页视图
+                mainWindow.addBrowserView(barView);
+                mainWindow.addBrowserView(webView);
+                const { width, height } = mainWindow.getBounds();
+                barView.setBounds({ x: 0, y: 0, width, height: BAR_HEIGHT });
+                webView.setBounds({ x: 0, y: BAR_HEIGHT, width, height: height - BAR_HEIGHT });
                 currentView = 'web';
                 mainWindow.show();
             }
@@ -790,11 +832,17 @@ function handleBossKey() {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (currentView === 'fake') {
         const prevView = viewBeforeBoss || 'web';
+        // 移除伪装视图
+        if (fakeView) mainWindow.removeBrowserView(fakeView);
         if (prevView === 'web' && webView) {
-            mainWindow.setBrowserView(webView);
-            webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+            // 添加地址栏和网页视图
+            mainWindow.addBrowserView(barView);
+            mainWindow.addBrowserView(webView);
+            const { width, height } = mainWindow.getBounds();
+            barView.setBounds({ x: 0, y: 0, width, height: BAR_HEIGHT });
+            webView.setBounds({ x: 0, y: BAR_HEIGHT, width, height: height - BAR_HEIGHT });
         } else if (prevView === 'player' && playerView) {
-            mainWindow.setBrowserView(playerView);
+            mainWindow.addBrowserView(playerView);
             playerView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         }
         currentView = prevView;
@@ -815,7 +863,12 @@ function handleBossKey() {
             });
             fakeView.webContents.loadFile(path.join(__dirname, "fakeScreen.html"));
         }
-        mainWindow.setBrowserView(fakeView);
+        // 移除当前视图
+        if (barView) mainWindow.removeBrowserView(barView);
+        if (webView) mainWindow.removeBrowserView(webView);
+        if (playerView) mainWindow.removeBrowserView(playerView);
+        // 添加伪装视图
+        mainWindow.addBrowserView(fakeView);
         fakeView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
         currentView = 'fake';
         mainWindow.show();
@@ -841,8 +894,14 @@ async function handleFakeWallpaper() {
     if (currentView !== 'web' || !webView) return;
     if (isFakeWallpaper) {
         isFakeWallpaper = false;
-        mainWindow.setBrowserView(webView);
-        webView.setBounds({ x: 0, y: 0, width: mainWindow.getBounds().width, height: mainWindow.getBounds().height });
+        // 移除假壁纸视图
+        if (fakeWallpaperView) mainWindow.removeBrowserView(fakeWallpaperView);
+        // 添加地址栏和网页视图
+        mainWindow.addBrowserView(barView);
+        mainWindow.addBrowserView(webView);
+        const { width, height } = mainWindow.getBounds();
+        barView.setBounds({ x: 0, y: 0, width, height: BAR_HEIGHT });
+        webView.setBounds({ x: 0, y: BAR_HEIGHT, width, height: height - BAR_HEIGHT });
         mainWindow.show();
         // 更新菜单状态
         if (menuWindow && !menuWindow.isDestroyed()) {
@@ -883,7 +942,11 @@ async function handleFakeWallpaper() {
         }
         const bgHtml = '<!DOCTYPE html><html><head><style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}body{background:url(' + croppedDataUrl + ') center/cover no-repeat}</style></head><body></body></html>';
         fakeWallpaperView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(bgHtml));
-        mainWindow.setBrowserView(fakeWallpaperView);
+        // 移除当前视图
+        if (barView) mainWindow.removeBrowserView(barView);
+        if (webView) mainWindow.removeBrowserView(webView);
+        // 添加假壁纸视图
+        mainWindow.addBrowserView(fakeWallpaperView);
         fakeWallpaperView.setBounds({ x: 0, y: 0, width: bounds.width, height: bounds.height });
         mainWindow.show();
     } catch (err) {
@@ -993,6 +1056,17 @@ function createWindow() {
         e.preventDefault();
     });
 
+    // 创建地址栏视图
+    barView = new BrowserView({
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    });
+    barView.webContents.loadFile(path.join(__dirname, "bar.html"));
+
+    // 创建网页视图
     webView = new BrowserView({
         webPreferences: {
             nodeIntegration: false,
@@ -1001,18 +1075,27 @@ function createWindow() {
             zoomFactor: 1.0
         }
     });
-    webView.webContents.loadFile(path.join(__dirname, "index.html"));
+    // 启动时不加载任何页面，等待用户输入URL
+    webView.webContents.loadURL('about:blank');
 
     // 启用触控板捏合缩放
     webView.webContents.setVisualZoomLevelLimits(1, 5);
 
-    // 每次导航完成后重新启用捏合缩放
-    webView.webContents.on('did-navigate', () => {
+    // 每次导航完成后重新启用捏合缩放，并更新地址栏
+    webView.webContents.on('did-navigate', (event, url) => {
         webView.webContents.setVisualZoomLevelLimits(1, 5);
+        // 发送当前URL到地址栏（忽略 about:blank）
+        if (barView && !barView.webContents.isDestroyed() && url !== 'about:blank') {
+            barView.webContents.send('update-url', url);
+        }
     });
 
-    webView.webContents.on('did-navigate-in-page', () => {
+    webView.webContents.on('did-navigate-in-page', (event, url) => {
         webView.webContents.setVisualZoomLevelLimits(1, 5);
+        // 发送当前URL到地址栏
+        if (barView && !barView.webContents.isDestroyed()) {
+            barView.webContents.send('update-url', url);
+        }
     });
 
     // 阻止 webView 中的视频全屏触发系统全屏
@@ -1023,10 +1106,14 @@ function createWindow() {
     // 播放器视图在首次使用时才创建，避免启动时弹出提示
     playerView = null;
 
-    // 初始显示网页视图
-    mainWindow.setBrowserView(webView);
-    // 设置 BrowserView 的大小
-    webView.setBounds({ x: 0, y: 0, width: 500, height: 380 });
+    // 添加地址栏和网页视图到主窗口
+    mainWindow.addBrowserView(barView);
+    mainWindow.addBrowserView(webView);
+
+    // 设置布局
+    const { width, height } = mainWindow.getBounds();
+    barView.setBounds({ x: 0, y: 0, width, height: BAR_HEIGHT });
+    webView.setBounds({ x: 0, y: BAR_HEIGHT, width, height: height - BAR_HEIGHT });
 
     //设置页面的初始化透明度
     mainWindow.setOpacity(0.3);
@@ -1128,8 +1215,11 @@ function createWindow() {
             if (isFakeWallpaper && fakeWallpaperView && !fakeWallpaperView.webContents.isDestroyed()) {
                 fakeWallpaperView.setBounds({ x: 0, y: 0, width, height });
             } else if (currentView === 'web' && webView && !webView.webContents.isDestroyed()) {
-                webView.setBounds({ x: 0, y: 0, width, height });
-                webView.webContents.send("resize", {width, height});
+                if (barView && !barView.webContents.isDestroyed()) {
+                    barView.setBounds({ x: 0, y: 0, width, height: BAR_HEIGHT });
+                }
+                webView.setBounds({ x: 0, y: BAR_HEIGHT, width, height: height - BAR_HEIGHT });
+                webView.webContents.send("resize", {width, height: height - BAR_HEIGHT});
             } else if (currentView === 'player' && playerView && !playerView.webContents.isDestroyed()) {
                 playerView.setBounds({ x: 0, y: 0, width, height });
                 playerView.webContents.send("resize", {width, height});

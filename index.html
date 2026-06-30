@@ -97,9 +97,24 @@
     const loadButton = document.getElementById('loadButton');
 
 
-    loadButton.addEventListener('click', () => {
+    // 加载URL的函数
+    function loadUrl() {
         const url = urlInput.value;
         ipcRenderer.send('load-url', url);
+    }
+
+    loadButton.addEventListener('click', loadUrl);
+
+    // 回车键也可以加载URL
+    urlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            loadUrl();
+        }
+    });
+
+    // 页面加载完成后请求当前URL
+    window.addEventListener('DOMContentLoaded', () => {
+        ipcRenderer.send('get-current-url');
     });
 
     // 监听来自主进程的resize消息
@@ -111,6 +126,11 @@
             contentArea.style.width = `${width}px`;
             contentArea.style.height = `${height - 28}px`; // 减去标题栏高度
         }
+    });
+
+    // 监听URL更新
+    ipcRenderer.on('update-url', (event, url) => {
+        urlInput.value = url;
     });
 </script>
 </body>
